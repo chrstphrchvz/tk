@@ -1,5 +1,5 @@
 /*
- * tkMacOSXLaunchServices.c --
+ * tkMacOSXLaunch.c --
  * Launches URL's using native API's on OS X without shelling out to "/usr/bin/open". Also gets and sets default app handlers.
  * Copyright (c) 2015-2019 Kevin Walzer/WordTech Communications LLC.
  *
