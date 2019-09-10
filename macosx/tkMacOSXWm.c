@@ -311,6 +311,8 @@ static int		WmWinTabbingId(Tcl_Interp *interp, TkWindow *winPtr,
 			    int objc, Tcl_Obj *const objv[]);
 static int		WmWinEnableAutomaticWindowTabbing(Tcl_Interp *interp,
                             int objc, Tcl_Obj *const objv[]);
+static int		WmWinTabTitle(Tcl_Interp *interp, TkWindow *winPtr,
+			    int objc, Tcl_Obj *const objv[]);
 static int		WmWinAppearance(Tcl_Interp *interp, TkWindow *winPtr,
 			    int objc, Tcl_Obj *const objv[]);
 static void		ApplyWindowAttributeFlagChanges(TkWindow *winPtr,
@@ -5526,11 +5528,11 @@ TkUnsupported1ObjCmd(
 {
     static const char *const subcmds[] = {
 	"style", "tabbingid", "appearance", "isdark",
-	"enableAutomaticWindowTabbing", NULL
+	"enableAutomaticWindowTabbing", "tabTitle", NULL
     };
     enum SubCmds {
 	TKMWS_STYLE, TKMWS_TABID, TKMWS_APPEARANCE, TKMWS_ISDARK,
-	TKWMS_ENABLEAUTOMATICWINDOWTABBING
+	TKWMS_ENABLEAUTOMATICWINDOWTABBING, TKWMS_TABTITLE
     };
     Tk_Window tkwin = clientData;
     TkWindow *winPtr;
@@ -5621,6 +5623,18 @@ TkUnsupported1ObjCmd(
 	    return TCL_ERROR;
 	}
 	return WmWinEnableAutomaticWindowTabbing(interp, objc, objv);
+    case TKWMS_TABTITLE:
+	if ([NSApp macMinorVersion] < 13) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                "Tab titles did not exist until OSX 10.13.", -1));
+	    Tcl_SetErrorCode(interp, "TK", "WINDOWSTYLE", "TABTITLE", NULL);
+	    return TCL_ERROR;
+	}
+	if ((objc < 3) || (objc > 4)) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "window ?newTitle?");
+	    return TCL_ERROR;
+	}
+	return WmWinTabTitle(interp, winPtr, objc, objv);
     default:
 	return TCL_ERROR;
     }
@@ -5922,6 +5936,78 @@ WmWinEnableAutomaticWindowTabbing(
     return TCL_OK;
 #endif
     return TCL_ERROR;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * WmWinTabTitle --
+ *
+ *	This procedure is invoked to process the
+ *	"::tk::unsupported::MacWindowStyle tabTitle" subcommand. The command
+ *	allows you to get or set the title for the NSWindowTab associated
+ *	with a Tk Window.  The syntax is:
+ *
+ *	    tk::unsupported::MacWindowStyle tabTitle window ?newTitle?
+ *
+ * Results:
+ *      Returns the title setting of the window prior to calling this
+ *	function.
+ *
+ * Side effects:
+ *      The underlying NSWindowTab's title property is set to the specified
+ *      value if the optional newTitle argument is supplied. Otherwise the
+ *      window's tab's title property is not changed.  If there is no tab title
+ *	set, the window title is used.
+ *	(Q: What to do for setting to empty string? Cocoa will allow setting it
+ *	to @"", while setting it to nil resets it to [win title].)
+ *	Only for macOS 10.13 or later.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+WmWinTabTitle(
+    Tcl_Interp *interp,		/* Current interpreter. */
+    TkWindow *winPtr,		/* Window to be manipulated. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj * const objv[])	/* Argument objects. */
+{
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101300
+    Tcl_Obj *result = NULL;
+    NSString *titleString = nil;
+    NSWindow *win = TkMacOSXDrawableWindow(winPtr->window);
+    if (win) {
+	NSWindowTab *winTab = [win tab];
+	if (winTab) {
+	    titleString = winTab.title;
+	    result = Tcl_NewStringObj(titleString.UTF8String, [titleString length]);
+	}
+    }
+    if (result == NULL) {
+	NSLog(@"Failed to read tab title; try calling update idletasks before getting/setting the title of the tab.");
+	return TCL_OK;
+    }
+    Tcl_SetObjResult(interp, result);
+    if (objc == 4) {
+	int len;
+	char *newTitle = Tcl_GetStringFromObj(objv[3], &len);
+	/*
+	 * TODO: decide whether supplying {}:
+	 * (0) sets the tab to empty string, or
+	 * (1) resets it to the window title.
+	 */
+	if ((1) && (len == 0)) {
+	    [[win tab] setTitle:nil];
+	} else {
+	    NSString *newTitleString = [NSString stringWithUTF8String:newTitle];
+	    [[win tab] setTitle:newTitleString];
+	}
+    }
+    return TCL_OK;
+#else
+    return TCL_ERROR;
+#endif // MAC_OS_X_VERSION_MAX_ALLOWED >= 101300
 }
 
 /*
