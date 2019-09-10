@@ -318,6 +318,8 @@ static int		WmWinIsTabBarVisible(Tcl_Interp *interp,
 static int		WmWinAddTabbedWindow(Tcl_Interp *interp,
 			    TkWindow *targetWinPtr, TkWindow *newWinPtr,
 			    int objc, Tcl_Obj *const objv[]);
+static int		WmWinTabbingMode(Tcl_Interp *interp, TkWindow *winPtr,
+			    int objc, Tcl_Obj *const objv[]);
 static int		WmWinAppearance(Tcl_Interp *interp, TkWindow *winPtr,
 			    int objc, Tcl_Obj *const objv[]);
 static void		ApplyWindowAttributeFlagChanges(TkWindow *winPtr,
@@ -5535,12 +5537,14 @@ TkUnsupported1ObjCmd(
 	"style", "tabbingid", "appearance", "isdark",
 	"isTabBarVisible",
 	"addTabbedWindow",
+	"tabbingMode",
 	"enableAutomaticWindowTabbing", "tabTitle", NULL
     };
     enum SubCmds {
 	TKMWS_STYLE, TKMWS_TABID, TKMWS_APPEARANCE, TKMWS_ISDARK,
 	TKWMS_ISTABBARVISIBLE,
 	TKWMS_ADDTABBEDWINDOW,
+	TKWMS_TABBINGMODE,
 	TKWMS_ENABLEAUTOMATICWINDOWTABBING, TKWMS_TABTITLE
     };
     Tk_Window tkwin = clientData;
@@ -5680,6 +5684,18 @@ TkUnsupported1ObjCmd(
 	    }
 	    return WmWinAddTabbedWindow(interp, winPtr, newWinPtr, objc, objv);
 	}
+    case TKWMS_TABBINGMODE:
+	if ([NSApp macMinorVersion] < 12) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                "Tabbing mode did not exist until OSX 10.12.", -1));
+	    Tcl_SetErrorCode(interp, "TK", "WINDOWSTYLE", "TABBINGMODE", NULL);
+	    return TCL_ERROR;
+	}
+	if ((objc < 3) || (objc > 4)) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "window ?newTabbingMode?");
+	    return TCL_ERROR;
+	}
+	return WmWinTabbingMode(interp, winPtr, objc, objv);
     default:
 	return TCL_ERROR;
     }
@@ -6211,6 +6227,88 @@ WmWinAddTabbedWindow(
 	[targetWin addTabbedWindow:newWin
 			   ordered:orderingMode];
     }
+    return TCL_OK;
+#else
+    return TCL_ERROR;
+#endif // MAC_OS_X_VERSION_MAX_ALLOWED >= 101200
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * WmWinTabbingMode --
+ *
+ *	This procedure is invoked to process the
+ *	"::tk::unsupported::MacWindowStyle tabbingMode" subcommand.
+ *	The command allows you to get or set the tabbing mode for the
+ *	NSWindow associated with a Tk Window.  The syntax is:
+ *
+ *	    tk::unsupported::MacWindowStyle tabbingMode window ?newTabbingMode?
+ *
+ *      Allowed tabbing mode names are "auto", "preferred", and "disallowed".
+ *
+ * Results:
+ *      Returns the tabbing mode of the window prior to calling this function.
+ *
+ * Side effects:
+ *      The underlying NSWindow's tabbingMode property is set to the specified
+ *      value if the optional newTabbingMode argument is supplied. Otherwise the
+ *      window's tabbingMode property is not changed.  If the tabbingMode is set
+ *      to preferred or disallowed then the window will use the associated(?)
+ *      tabbing mode even if the user has selected a different ?? mode with
+ *      the system preferences.  If it is set to auto, then the preferences
+ *	will determine the effective tabbing behavior.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+WmWinTabbingMode(
+    Tcl_Interp *interp,		/* Current interpreter. */
+    TkWindow *winPtr,		/* Window to be manipulated. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj * const objv[])	/* Argument objects. */
+{
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101200
+    /*
+     * The tabbing mode is the index, i.e.
+     *	tabbingModeStrings[NSWindowTabbingModeAutomatic]  = "auto"
+     *	tabbingModeStrings[NSWindowTabbingModePreferred]  = "preferred"
+     *	tabbingModeStrings[NSWindowTabbingModeDisallowed] = "disallowed"
+     */
+    static const char *const tabbingModeStrings[] = {
+	"auto", "preferred", "disallowed", NULL
+    };
+    Tcl_Obj *result = NULL;
+    NSWindowTabbingMode tabbingMode;
+
+    const char *resultString = "unrecognized";
+    NSWindow *win = TkMacOSXDrawableWindow(winPtr->window);
+    if (win) {
+	tabbingMode = win.tabbingMode;
+	if (tabbingMode < sizeof(tabbingModeStrings)/sizeof(tabbingModeStrings[0])) {
+	    resultString = tabbingModeStrings[tabbingMode];
+	    result = Tcl_NewStringObj(resultString, strlen(resultString));
+	}
+    }
+    if (result == NULL) {
+	NSLog(@"Failed to read tabbing mode; try calling update idletasks before getting/setting the tabbing mode of the window.");
+	return TCL_OK;
+    }
+    if (objc == 4) {
+	int index;
+	if (Tcl_GetIndexFromObjStruct(interp, objv[3], tabbingModeStrings,
+                sizeof(char *), "tabbingMode", 0, &index) != TCL_OK) {
+            return TCL_ERROR;
+        }
+	// See comment for tabbingModeStrings[]: the tabbing mode is the index
+	/*
+	 * FIXME: this doesn't seem to do anything, because this is supposed
+	 * to be set before the window is shown. How to "recreate" the window?
+	 */
+	win.tabbingMode = (NSWindowTabbingMode) index;
+    }
+    Tcl_SetObjResult(interp, result);
     return TCL_OK;
 #else
     return TCL_ERROR;
