@@ -313,6 +313,8 @@ static int		WmWinEnableAutomaticWindowTabbing(Tcl_Interp *interp,
                             int objc, Tcl_Obj *const objv[]);
 static int		WmWinTabTitle(Tcl_Interp *interp, TkWindow *winPtr,
 			    int objc, Tcl_Obj *const objv[]);
+static int		WmWinIsTabBarVisible(Tcl_Interp *interp,
+			    TkWindow *winPtr, int objc, Tcl_Obj *const objv[]);
 static int		WmWinAppearance(Tcl_Interp *interp, TkWindow *winPtr,
 			    int objc, Tcl_Obj *const objv[]);
 static void		ApplyWindowAttributeFlagChanges(TkWindow *winPtr,
@@ -5528,10 +5530,12 @@ TkUnsupported1ObjCmd(
 {
     static const char *const subcmds[] = {
 	"style", "tabbingid", "appearance", "isdark",
+	"isTabBarVisible",
 	"enableAutomaticWindowTabbing", "tabTitle", NULL
     };
     enum SubCmds {
 	TKMWS_STYLE, TKMWS_TABID, TKMWS_APPEARANCE, TKMWS_ISDARK,
+	TKWMS_ISTABBARVISIBLE,
 	TKWMS_ENABLEAUTOMATICWINDOWTABBING, TKWMS_TABTITLE
     };
     Tk_Window tkwin = clientData;
@@ -5635,6 +5639,18 @@ TkUnsupported1ObjCmd(
 	    return TCL_ERROR;
 	}
 	return WmWinTabTitle(interp, winPtr, objc, objv);
+    case TKWMS_ISTABBARVISIBLE:
+	if ([NSApp macMinorVersion] < 12) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                "Tab bar did not exist until OSX 10.12.", -1));
+	    Tcl_SetErrorCode(interp, "TK", "WINDOWSTYLE", "ISTABBARVISIBLE", NULL);
+	    return TCL_ERROR;
+	}
+	if ((objc < 3) || (objc > 4)) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "window ?newVisibilityState?");
+	    return TCL_ERROR;
+	}
+	return WmWinIsTabBarVisible(interp, winPtr, objc, objv);
     default:
 	return TCL_ERROR;
     }
@@ -6002,6 +6018,73 @@ WmWinTabTitle(
 	} else {
 	    NSString *newTitleString = [NSString stringWithUTF8String:newTitle];
 	    [[win tab] setTitle:newTitleString];
+	}
+    }
+    return TCL_OK;
+#else
+    return TCL_ERROR;
+#endif // MAC_OS_X_VERSION_MAX_ALLOWED >= 101300
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * WmWinIsTabBarVisible --
+ *
+ *	This procedure is invoked to process the
+ *	"::tk::unsupported::MacWindowStyle isTabBarVisible window ?newVisibilityState?"
+ *	subcommand, which can be used to get or set whether the tab bar (available on macOS 10.12 or later) is visible.
+ *	If newVisibilityState is specified (either 0 or 1) then the tab bar will be shown/hidden accordingly, unless window contains multiple tabs.
+ *
+ *	    tk::unsupported::MacWindowStyle isTabBarVisible window ?newVisibilityState?
+ *
+ *
+ * Results:
+ *	Returns the existing tab bar visibility state is returned (either 0 or 1).
+ *
+ * Side effects:
+ *	If newVisibilityState is specified, then the tab bar visibility state may be updated if window only contains a single tab.
+ *	Q: using API for macOS 10.13—how to do this for 10.12?
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+WmWinIsTabBarVisible(
+    Tcl_Interp *interp,		/* Current interpreter. */
+    TkWindow *winPtr,		/* Window to be manipulated. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj * const objv[])	/* Argument objects. */
+{
+// TODO: how to do this for macOS 10.12?
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101300
+    int isTabBarVisible;
+    NSWindowTabGroup *tabGroup = nil;
+    Tcl_Obj *result = NULL;
+    NSWindow *win = TkMacOSXDrawableWindow(winPtr->window);
+    if (win) {
+	tabGroup = [win tabGroup];
+	if (tabGroup) {
+	    isTabBarVisible = (int) tabGroup.tabBarVisible;
+	    result = Tcl_NewBooleanObj(isTabBarVisible);
+	}
+    }
+    if (result == NULL) {
+	NSLog(@"Failed to get tab bar visibility state; try running update idletasks first.");
+	return TCL_ERROR;
+    }
+    Tcl_SetObjResult(interp, result);
+    if (objc == 4) {
+	int newVisibilityState;
+	if (Tcl_GetBoolean(interp, Tcl_GetString(objv[3]),
+		&newVisibilityState) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	if (isTabBarVisible != newVisibilityState) {
+	    [win toggleTabBar:nil];
+	    if ((int) win.tabGroup.tabBarVisible != newVisibilityState) {
+		NSLog(@"Failed to show/hide tab bar (note that the tab bar cannot be hidden in windows with multiple tabs).");
+	    }
 	}
     }
     return TCL_OK;
