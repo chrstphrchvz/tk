@@ -315,6 +315,9 @@ static int		WmWinTabTitle(Tcl_Interp *interp, TkWindow *winPtr,
 			    int objc, Tcl_Obj *const objv[]);
 static int		WmWinIsTabBarVisible(Tcl_Interp *interp,
 			    TkWindow *winPtr, int objc, Tcl_Obj *const objv[]);
+static int		WmWinAddTabbedWindow(Tcl_Interp *interp,
+			    TkWindow *targetWinPtr, TkWindow *newWinPtr,
+			    int objc, Tcl_Obj *const objv[]);
 static int		WmWinAppearance(Tcl_Interp *interp, TkWindow *winPtr,
 			    int objc, Tcl_Obj *const objv[]);
 static void		ApplyWindowAttributeFlagChanges(TkWindow *winPtr,
@@ -5531,11 +5534,13 @@ TkUnsupported1ObjCmd(
     static const char *const subcmds[] = {
 	"style", "tabbingid", "appearance", "isdark",
 	"isTabBarVisible",
+	"addTabbedWindow",
 	"enableAutomaticWindowTabbing", "tabTitle", NULL
     };
     enum SubCmds {
 	TKMWS_STYLE, TKMWS_TABID, TKMWS_APPEARANCE, TKMWS_ISDARK,
 	TKWMS_ISTABBARVISIBLE,
+	TKWMS_ADDTABBEDWINDOW,
 	TKWMS_ENABLEAUTOMATICWINDOWTABBING, TKWMS_TABTITLE
     };
     Tk_Window tkwin = clientData;
@@ -5651,6 +5656,30 @@ TkUnsupported1ObjCmd(
 	    return TCL_ERROR;
 	}
 	return WmWinIsTabBarVisible(interp, winPtr, objc, objv);
+    case TKWMS_ADDTABBEDWINDOW:
+	if ([NSApp macMinorVersion] < 12) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                "Adding tabbed windows did not exist until OSX 10.12.", -1));
+	    Tcl_SetErrorCode(interp, "TK", "WINDOWSTYLE", "TABBINGMODE", NULL);
+	    return TCL_ERROR;
+	}
+	if (objc != 5) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "targetWindow newWindow orderingMode");
+	    return TCL_ERROR;
+	} else {
+	    TkWindow *newWinPtr = (TkWindow *)
+		Tk_NameToWindow(interp, Tcl_GetString(objv[3]), tkwin);
+	    if (newWinPtr == NULL) {
+		return TCL_ERROR;
+	    }
+	    if (!(newWinPtr->flags & TK_TOP_LEVEL)) {
+		Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+		    "window \"%s\" isn't a top-level window", newWinPtr->pathName));
+		Tcl_SetErrorCode(interp, "TK", "WINDOWSTYLE" /* FIXME: use something else here? */, "TOPLEVEL", NULL);
+		return TCL_ERROR;
+	    }
+	    return WmWinAddTabbedWindow(interp, winPtr, newWinPtr, objc, objv);
+	}
     default:
 	return TCL_ERROR;
     }
@@ -6091,6 +6120,101 @@ WmWinIsTabBarVisible(
 #else
     return TCL_ERROR;
 #endif // MAC_OS_X_VERSION_MAX_ALLOWED >= 101300
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * WmWinAddTabbedWindow --
+ *
+ *	This procedure is invoked to process the
+ *	"::tk::unsupported::MacWindowStyle addTabbedWindow" subcommand.
+ *	The command allows adding an existing Tk toplevel as a tab appearing
+ *	alongside another Tk toplevel in a single real window.  The syntax is:
+ *
+ *	    tk::unsupported::MacWindowStyle addTabbedWindow targetWindow newWindow orderingMode
+ *
+ *	targetWindow and newWindow must be different toplevels.
+ *      Allowed order names are "above", "below"~~, and "out"~~.
+ *	(When a left-to-right language is in use, using "above"/"below" puts
+ *	targetWindow to the left/right respectively of newWindow.
+ *	Not sure what happens for right-to-left languages.)
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      On macOS 10.12 and later, the Tk toplevel newWindow becomes a tab
+ *	in the same window as the Tk toplevel targetWindow, using the order
+ *	specified by orderingMode.
+ *
+ *	Q: What does "out" do? Is it useful? Should we instead away with
+ *	"above"/"below" by only accepting two windows and using "above"
+ *	implicitly for the order they're specified?
+ *
+ *	Note: newWin is temporarily moved to its own window, so as to prevent
+ *	a crash due to NSInternalInconsistencyException when doing e.g.:
+ *
+ *	toplevel .t
+ *	::tk::unsupported::MacWindowStyle addTabbedWindow . .t above
+ *	::tk::unsupported::MacWindowStyle addTabbedWindow .t . above
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+WmWinAddTabbedWindow(
+    Tcl_Interp *interp,		/* Current interpreter. */
+    TkWindow *targetWinPtr,	/* Window to add tab into. */
+    TkWindow *newWinPtr,	/* Window to create tab from. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj * const objv[])	/* Argument objects. */
+{
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101200
+    /*
+     * The ordering mode is (index - 1), i.e.
+     *	orderingModeStrings[NSWindowBelow + 1] = "below"
+     *	orderingModeStrings[NSWindowOut   + 1] = "out"
+     *	orderingModeStrings[NSWindowAbove + 1] = "above"
+     */
+    static const char *const orderingModeStrings[] = {
+	"below", "out", "above", NULL
+    };
+
+    NSWindow *targetWin = TkMacOSXDrawableWindow(targetWinPtr->window),
+    	     *newWin    = TkMacOSXDrawableWindow(newWinPtr->window);
+    if (targetWin && newWin) {
+	if (targetWin == newWin) {
+	    NSLog(@"A window cannot be made into a tab in itself.");
+	    return TCL_OK;
+	}
+	if ([targetWin.tabbingIdentifier compare:newWin.tabbingIdentifier]
+		!= NSOrderedSame) {
+	    NSLog(@"Not combining windows with differing tabbing identifiers.");
+	    return TCL_OK;
+	}
+	int index;
+	NSWindowOrderingMode orderingMode;
+	if (Tcl_GetIndexFromObjStruct(interp, objv[4], orderingModeStrings,
+                sizeof(char *), "orderingMode", 0, &index) != TCL_OK) {
+            return TCL_ERROR;
+        }
+
+	// Prevent crash due to NSInternalInconsistencyException
+	[newWin moveTabToNewWindow:nil];
+
+	/*
+	 * See comment for orderingModeStrings[]:
+	 * the ordering mode is (index - 1)
+	 */
+	orderingMode = (NSWindowOrderingMode) (index - 1);
+	[targetWin addTabbedWindow:newWin
+			   ordered:orderingMode];
+    }
+    return TCL_OK;
+#else
+    return TCL_ERROR;
+#endif // MAC_OS_X_VERSION_MAX_ALLOWED >= 101200
 }
 
 /*
