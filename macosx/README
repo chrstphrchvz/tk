@@ -237,6 +237,11 @@ to open application windows as tabs. An application which does not provide a
 Window menu will necessarily present a confusing interface to any user who has
 selected this option.
 
+For consistency with other platforms and older macOS versions, automatic
+window tabbing is disabled by default.  It can be enabled by invoking:
+
+::tk::unsupported::MacWindowStyle enableAutomaticWindowTabbing
+
 A further complication is that it is not neccessarily appropriate for all of an
 application's windows to be grouped together as tabs in the same frame.  In
 fact, the Apple guidelines insist that windows which are grouped together as

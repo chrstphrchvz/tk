@@ -309,6 +309,8 @@ static int		WmWinStyle(Tcl_Interp *interp, TkWindow *winPtr,
 			    int objc, Tcl_Obj *const objv[]);
 static int		WmWinTabbingId(Tcl_Interp *interp, TkWindow *winPtr,
 			    int objc, Tcl_Obj *const objv[]);
+static int		WmWinEnableAutomaticWindowTabbing(Tcl_Interp *interp,
+                            int objc, Tcl_Obj *const objv[]);
 static int		WmWinAppearance(Tcl_Interp *interp, TkWindow *winPtr,
 			    int objc, Tcl_Obj *const objv[]);
 static void		ApplyWindowAttributeFlagChanges(TkWindow *winPtr,
@@ -5523,30 +5525,37 @@ TkUnsupported1ObjCmd(
     Tcl_Obj *const objv[])	/* Argument objects. */
 {
     static const char *const subcmds[] = {
-	"style", "tabbingid", "appearance", "isdark", NULL
+	"style", "tabbingid", "appearance", "isdark",
+	"enableAutomaticWindowTabbing", NULL
     };
     enum SubCmds {
-	TKMWS_STYLE, TKMWS_TABID, TKMWS_APPEARANCE, TKMWS_ISDARK
+	TKMWS_STYLE, TKMWS_TABID, TKMWS_APPEARANCE, TKMWS_ISDARK,
+	TKWMS_ENABLEAUTOMATICWINDOWTABBING
     };
     Tk_Window tkwin = clientData;
     TkWindow *winPtr;
     int index;
 
+    // FIXME: enableAutomaticWindowTabbing only takes 2 args
+#if 0
     if (objc < 3) {
 	Tcl_WrongNumArgs(interp, 1, objv, "option window ?arg ...?");
 	return TCL_ERROR;
     }
+#endif
 
-    winPtr = (TkWindow *)
+    if (objc >= 3) {
+	winPtr = (TkWindow *)
 	    Tk_NameToWindow(interp, Tcl_GetString(objv[2]), tkwin);
-    if (winPtr == NULL) {
-	return TCL_ERROR;
-    }
-    if (!(winPtr->flags & TK_TOP_LEVEL)) {
-	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+	if (winPtr == NULL) {
+	    return TCL_ERROR;
+	}
+	if (!(winPtr->flags & TK_TOP_LEVEL)) {
+	    Tcl_SetObjResult(interp, Tcl_ObjPrintf(
 		"window \"%s\" isn't a top-level window", winPtr->pathName));
-	Tcl_SetErrorCode(interp, "TK", "WINDOWSTYLE", "TOPLEVEL", NULL);
-	return TCL_ERROR;
+	    Tcl_SetErrorCode(interp, "TK", "WINDOWSTYLE", "TOPLEVEL", NULL);
+	    return TCL_ERROR;
+	}
     }
 
     if (Tcl_GetIndexFromObjStruct(interp, objv[1], subcmds,
@@ -5599,6 +5608,19 @@ TkUnsupported1ObjCmd(
 	Tcl_SetObjResult(interp, Tcl_NewBooleanObj(
 		TkMacOSXInDarkMode((Tk_Window) winPtr)));
 	return TCL_OK;
+    case TKWMS_ENABLEAUTOMATICWINDOWTABBING:
+	if ([NSApp macMinorVersion] < 12) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                "Automatic window tabbing did not exist until OSX 10.12.", -1));
+	    Tcl_SetErrorCode(interp, "TK", "WINDOWSTYLE",
+	        "ENABLEAUTOMATICWINDOWTABBING", NULL);
+	    return TCL_ERROR;
+	}
+	if (objc != 2) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "");
+	    return TCL_ERROR;
+	}
+	return WmWinEnableAutomaticWindowTabbing(interp, objc, objv);
     default:
 	return TCL_ERROR;
     }
@@ -5857,6 +5879,47 @@ WmWinTabbingId(
 	}
 	return TCL_OK;
     }
+#endif
+    return TCL_ERROR;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * WmWinEnableAutomaticWindowTabbing --
+ *
+ *	This procedure is invoked to process the
+ *	"::tk::unsupported::MacWindowStyle enableAutomaticWindowTabbing"
+ *	subcommand.  For consistency with other plaforms and older macOS
+ *	versions, automatic window tabbing is disabled when Tk is started.
+ *	This command can then be used to enable automatic window tabbing
+ *	for all windows, if running macOS 10.12 or later.
+ *
+ *	    tk::unsupported::MacWindowStyle enableAutomaticWindowTabbing
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	If running macOS 10.12 or later, then automatic window tabbing
+ *	becomes enabled for all windows.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+WmWinEnableAutomaticWindowTabbing(
+    Tcl_Interp *interp,		/* Current interpreter. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj * const objv[])	/* Argument objects. */
+{
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101200
+    NSWindow.allowsAutomaticWindowTabbing = YES;
+    /*
+     * TODO: re-enable "Show/Hide Tab Bar" and "Show All Tabs"
+     * menu items in the Window menu.
+     */
+    return TCL_OK;
 #endif
     return TCL_ERROR;
 }

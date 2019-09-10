@@ -161,6 +161,15 @@ static char scriptPath[PATH_MAX + 1] = "";
     [NSApp setMacMinorVersion: minorVersion];
 
     /*
+     * Disable automatic window tabbing
+     * (can be explicitly enabled later by a Tk program).
+     */
+    if (minorVersion >= 12) {
+	// TODO: Need a way to re-enable menu items hidden by this.
+	//NSWindow.allowsAutomaticWindowTabbing = NO;
+    }
+
+    /*
      * We are not drawing right now.
      */
 
