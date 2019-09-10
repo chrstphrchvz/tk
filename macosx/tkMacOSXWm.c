@@ -315,6 +315,8 @@ static int		WmWinTabTitle(Tcl_Interp *interp, TkWindow *winPtr,
 			    int objc, Tcl_Obj *const objv[]);
 static int		WmWinIsTabBarVisible(Tcl_Interp *interp,
 			    TkWindow *winPtr, int objc, Tcl_Obj *const objv[]);
+static int		WmWinMoveTabToNewWindow(Tcl_Interp *interp,
+			    TkWindow *winPtr, int objc, Tcl_Obj *const objv[]);
 static int		WmWinAddTabbedWindow(Tcl_Interp *interp,
 			    TkWindow *targetWinPtr, TkWindow *newWinPtr,
 			    int objc, Tcl_Obj *const objv[]);
@@ -5536,6 +5538,7 @@ TkUnsupported1ObjCmd(
     static const char *const subcmds[] = {
 	"style", "tabbingid", "appearance", "isdark",
 	"isTabBarVisible",
+	"moveTabToNewWindow",
 	"addTabbedWindow",
 	"tabbingMode",
 	"enableAutomaticWindowTabbing", "tabTitle", NULL
@@ -5543,6 +5546,7 @@ TkUnsupported1ObjCmd(
     enum SubCmds {
 	TKMWS_STYLE, TKMWS_TABID, TKMWS_APPEARANCE, TKMWS_ISDARK,
 	TKWMS_ISTABBARVISIBLE,
+	TKWMS_MOVETABTONEWWINDOW,
 	TKWMS_ADDTABBEDWINDOW,
 	TKWMS_TABBINGMODE,
 	TKWMS_ENABLEAUTOMATICWINDOWTABBING, TKWMS_TABTITLE
@@ -5660,6 +5664,18 @@ TkUnsupported1ObjCmd(
 	    return TCL_ERROR;
 	}
 	return WmWinIsTabBarVisible(interp, winPtr, objc, objv);
+    case TKWMS_MOVETABTONEWWINDOW:
+	if ([NSApp macMinorVersion] < 12) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                "Move tab to new window did not exist until OSX 10.12.", -1));
+	    Tcl_SetErrorCode(interp, "TK", "WINDOWSTYLE", "MOVETABTONEWWINDOW", NULL);
+	    return TCL_ERROR;
+	}
+	if (objc != 3) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "window");
+	    return TCL_ERROR;
+	}
+	return WmWinMoveTabToNewWindow(interp, winPtr, objc, objv);
     case TKWMS_ADDTABBEDWINDOW:
 	if ([NSApp macMinorVersion] < 12) {
 	    Tcl_SetObjResult(interp, Tcl_NewStringObj(
@@ -6136,6 +6152,45 @@ WmWinIsTabBarVisible(
 #else
     return TCL_ERROR;
 #endif // MAC_OS_X_VERSION_MAX_ALLOWED >= 101300
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * WmWinMoveTabToNewWindow --
+ *
+ *	This procedure is invoked to process the
+ *	"::tk::unsupported::MacWindowStyle moveTabToNewWindow" subcommand.
+ *	The command allows you to move the tab associated with a Tk Window
+ *	to its own separate real window.
+ *
+ *	    tk::unsupported::MacWindowStyle moveTabToNewWindow window
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	On macOS 10.12 and later, will move the tab for window to a new window.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+WmWinMoveTabToNewWindow(
+    Tcl_Interp *interp,		/* Current interpreter. */
+    TkWindow *winPtr,		/* Window to be manipulated. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj * const objv[])	/* Argument objects. */
+{
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101200
+    NSWindow *win = TkMacOSXDrawableWindow(winPtr->window);
+    if (win) {
+	[win moveTabToNewWindow:nil];
+    }
+    return TCL_OK;
+#else
+    return TCL_ERROR;
+#endif
 }
 
 /*
