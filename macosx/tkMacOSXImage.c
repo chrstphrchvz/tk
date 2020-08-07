@@ -579,6 +579,47 @@ CreateCGImageFromDrawableRect(
 /*
  *----------------------------------------------------------------------
  *
+ * TkMacOSXNSWindowBackingScaleFactor --
+ *
+ *	Compatibility wrapper for NSWindow backingScaleFactor
+ *	property (present only on macOS 10.7+).
+ *
+ * Results:
+ *	Returns the backingScaleFactor for the given NSWindow,
+ *	which is currently either 2.0 for a window on a Retina
+ *	display, or 1.0 on a non-Retina display.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+TkMacOSXNSWindowHasBackingScaleFactorEnum tkMacOSXNSWindowHasBackingScaleFactor =
+	NSWINDOW_HAS_BACKING_SCALE_FACTOR_UNKNOWN;
+
+CGFloat
+TkMacOSXNSWindowBackingScaleFactor(
+    NSWindow *win)
+{
+// Q: Why is this checking for clang? gcc implying 10.6 build?
+// Usability of instancesRespondToSelector: or @selector() syntax?
+#ifdef __clang__
+    if (tkMacOSXNSWindowHasBackingScaleFactor == NSWINDOW_HAS_BACKING_SCALE_FACTOR_UNKNOWN) {
+	tkMacOSXNSWindowHasBackingScaleFactor = [NSWindow
+		instancesRespondToSelector:@selector(backingScaleFactor)]
+		? NSWINDOW_HAS_BACKING_SCALE_FACTOR_YES : NSWINDOW_HAS_BACKING_SCALE_FACTOR_NO;
+    }
+    if (tkMacOSXNSWindowHasBackingScaleFactor == NSWINDOW_HAS_BACKING_SCALE_FACTOR_YES) {
+	return [win backingScaleFactor];
+    }
+#endif
+    return 1.0;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
  * CreateCGImageFromPixmap --
  *
  *	Create a CGImage from an X Pixmap.

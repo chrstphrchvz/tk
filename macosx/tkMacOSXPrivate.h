@@ -206,11 +206,24 @@ typedef struct TkMacOSXDrawingContext {
     CGRect portBounds;
 } TkMacOSXDrawingContext;
 
+
+/*
+ * Enum for determining whether NSWindow has the backingScaleFactor
+ * property at runtime.
+ */
+
+typedef enum {
+    NSWINDOW_HAS_BACKING_SCALE_FACTOR_UNKNOWN,
+    NSWINDOW_HAS_BACKING_SCALE_FACTOR_NO,
+    NSWINDOW_HAS_BACKING_SCALE_FACTOR_YES
+} TkMacOSXNSWindowHasBackingScaleFactorEnum;
+
 /*
  * Variables internal to TkAqua.
  */
 
 MODULE_SCOPE long tkMacOSXMacOSXVersion;
+MODULE_SCOPE TkMacOSXNSWindowHasBackingScaleFactorEnum tkMacOSXNSWindowHasBackingScaleFactor;
 
 /*
  * Prototypes for TkMacOSXRegion.c.
@@ -293,6 +306,7 @@ MODULE_SCOPE void       TkMacOSXWinNSBounds(TkWindow *winPtr, NSView *view,
 MODULE_SCOPE Bool       TkMacOSXInDarkMode(Tk_Window tkwin);
 MODULE_SCOPE void	TkMacOSXDrawAllViews(ClientData clientData);
 MODULE_SCOPE unsigned long TkMacOSXClearPixel(void);
+MODULE_SCOPE CGFloat	TkMacOSXNSWindowBackingScaleFactor(NSWindow *win);
 
 #pragma mark Private Objective-C Classes
 
