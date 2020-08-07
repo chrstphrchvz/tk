@@ -143,8 +143,7 @@ TkMacOSXCreateCGImageWithXImage(
  * Results:
  *	Returns a newly allocated XImage containing the data from the given
  *	rectangle of the given drawable, or NULL if the XImage could not be
- *	constructed.  NOTE: If we are copying from a window on a Retina
- *	display, the dimensions of the XImage will be 2*width x 2*height.
+ *	constructed.
  *
  * Side effects:
  *	If successful, allocates an XImage.
@@ -173,30 +172,6 @@ XGetImage(
     char R, G, B, A;
     int depth = 32, offset = 0, bitmap_pad = 0;
     unsigned int bytes_per_row, size, row, n, m;
-    unsigned int scalefactor=1, scaled_height=height, scaled_width=width;
-    NSWindow *win = TkMacOSXDrawableWindow(drawable);
-    static enum {unknown, no, yes} has_retina = unknown;
-
-    if (win && has_retina == unknown) {
-#ifdef __clang__
-	has_retina = [win respondsToSelector:@selector(backingScaleFactor)] ?
-		yes : no;
-#else
-	has_retina = no;
-#endif
-    }
-
-    if (has_retina == yes) {
-	/*
-	 * We only allow scale factors 1 or 2, as Apple currently does.
-	 */
-
-#ifdef __clang__
-	scalefactor = [win backingScaleFactor] == 2.0 ? 2 : 1;
-#endif
-	scaled_height *= scalefactor;
-	scaled_width *= scalefactor;
-    }
 
     if (format == ZPixmap) {
 	if (width == 0 || height == 0) {
@@ -217,8 +192,8 @@ XGetImage(
 		|| (bitmap_fmt != 0 && bitmap_fmt != 1)
 		|| [bitmap_rep samplesPerPixel] != 4
 		|| [bitmap_rep isPlanar] != 0
-		|| bytes_per_row < 4 * scaled_width
-		|| size != bytes_per_row * scaled_height) {
+		|| bytes_per_row < 4 * width
+		|| size != bytes_per_row * height) {
 	    TkMacOSXDbgMsg("XGetImage: Unrecognized bitmap format");
 	    CFRelease(bitmap_rep);
 	    return NULL;
@@ -233,8 +208,8 @@ XGetImage(
 
 	struct pixel_fmt pixel = bitmap_fmt == 0 ? bgra : abgr;
 
-	for (row = 0, n = 0; row < scaled_height; row++, n += bytes_per_row) {
-	    for (m = n; m < n + 4*scaled_width; m += 4) {
+	for (row = 0, n = 0; row < height; row++, n += bytes_per_row) {
+	    for (m = n; m < n + 4*width; m += 4) {
 		R = *(bitmap + m + pixel.r);
 		G = *(bitmap + m + pixel.g);
 		B = *(bitmap + m + pixel.b);
@@ -247,11 +222,8 @@ XGetImage(
 	    }
 	}
 	imagePtr = XCreateImage(display, NULL, depth, format, offset,
-		(char*) bitmap, scaled_width, scaled_height,
+		(char*) bitmap, width, height,
 		bitmap_pad, bytes_per_row);
-	if (scalefactor == 2) {
-	    imagePtr->pixelpower = 1;
-	}
     } else {
 	/*
 	 * There are some calls to XGetImage in the generic Tk code which pass
@@ -473,13 +445,6 @@ XCreateImage(
     ximage->data = data;
     ximage->obdata = NULL;
 
-    /*
-     * The default pixelpower is 0.  This must be explicitly set to 1 in the
-     * case of an XImage extracted from a Retina display.
-     */
-
-    ximage->pixelpower = 0;
-
     if (format == ZPixmap) {
 	ximage->bits_per_pixel = 32;
 	ximage->bitmap_unit = 32;
@@ -574,17 +539,8 @@ XPutImage(
 	}
 	if (img) {
 
-	    /*
-	     * If the XImage has big pixels, the source is rescaled to reflect
-	     * the actual pixel dimensions.  This is not currently used, but
-	     * could arise if the image were copied from a retina monitor and
-	     * redrawn on an ordinary monitor.
-	     */
-
-	    int pp = image->pixelpower;
-
 	    bounds = CGRectMake(0, 0, image->width, image->height);
-	    srcRect = CGRectMake(src_x<<pp, src_y<<pp, width<<pp, height<<pp);
+	    srcRect = CGRectMake(src_x, src_y, width, height);
 	    dstRect = CGRectMake(dest_x, dest_y, width, height);
 	    TkMacOSXDrawCGImage(drawable, gc, dc.context,
 				img, gc->foreground, gc->background,

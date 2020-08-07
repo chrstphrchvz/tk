@@ -205,11 +205,24 @@ typedef struct TkMacOSXDrawingContext {
     CGRect portBounds;
 } TkMacOSXDrawingContext;
 
+
+/*
+ * Enum for determining whether NSWindow has the backingScaleFactor
+ * property at runtime.
+ */
+
+typedef enum {
+    NSWINDOW_HAS_RETINA_UNKNOWN,
+    NSWINDOW_HAS_RETINA_NO,
+    NSWINDOW_HAS_RETINA_YES
+} TkMacOSXNSWindowHasRetinaEnum;
+
 /*
  * Variables internal to TkAqua.
  */
 
 MODULE_SCOPE long tkMacOSXMacOSXVersion;
+MODULE_SCOPE TkMacOSXNSWindowHasRetinaEnum tkMacOSXNSWindowHasRetina;
 
 /*
  * Prototypes for TkMacOSXRegion.c.
@@ -309,6 +322,7 @@ MODULE_SCOPE void       TkMacOSXWinNSBounds(TkWindow *winPtr, NSView *view,
 					    NSRect *bounds);
 MODULE_SCOPE void	TkMacOSXDrawAllViews(ClientData clientData);
 MODULE_SCOPE unsigned long TkMacOSXClearPixel(void);
+MODULE_SCOPE int	TkMacOSXNSWindowBackingScaleFactor(NSWindow *win);
 
 #pragma mark Private Objective-C Classes
 

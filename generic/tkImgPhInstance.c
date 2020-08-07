@@ -409,9 +409,6 @@ TkImgPhotoGet(
  *
  *	Note that Win32 pre-defines those operations that we really need.
  *
- *	Note that on MacOS, if the background comes from a Retina display
- *	then it will be twice as wide and twice as high as the photoimage.
- *
  *----------------------------------------------------------------------
  */
 #ifndef TKPUTIMAGE_CAN_BLEND

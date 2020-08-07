@@ -213,6 +213,48 @@ TkMacOSXBitmapRepFromDrawableRect(
 /*
  *----------------------------------------------------------------------
  *
+ * TkMacOSXNSWindowBackingScaleFactor
+ *
+ *	Compatibility wrapper for NSWindow backingScaleFactor
+ *	property (present only on macOS 10.7+).
+ *
+ * Results:
+ *	Returns the backingScaleFactor for the given NSWindow,
+ *	which is currently either 2 for a window on a Retina
+ *	display, or 1 otherwise.
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+TkMacOSXNSWindowHasRetinaEnum tkMacOSXNSWindowHasRetina =
+	NSWINDOW_HAS_RETINA_UNKNOWN;
+
+int
+TkMacOSXNSWindowBackingScaleFactor(
+    NSWindow *win)
+{
+#ifdef __clang__
+    if (tkMacOSXNSWindowHasRetina == NSWINDOW_HAS_RETINA_UNKNOWN) {
+	tkMacOSXNSWindowHasRetina = [NSWindow
+		instancesRespondToSelector:@selector(backingScaleFactor)]
+		? NSWINDOW_HAS_RETINA_YES : NSWINDOW_HAS_RETINA_NO;
+    }
+    if (tkMacOSXNSWindowHasRetina == NSWINDOW_HAS_RETINA_YES) {
+	/*
+	 * We only allow scale factors of 1 or 2, as Apple currently does.
+	 */
+	return [win backingScaleFactor] == 2.0 ? 2 : 1;
+    }
+#endif
+    return 1;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
  * XCopyArea --
  *
  *	Copies data from one drawable to another.
