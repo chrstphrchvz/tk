@@ -6144,6 +6144,16 @@ TkMacOSXMakeRealWindowExist(
     [window setDocumentEdited:NO];
     wmPtr->window = window;
     macWin->view = window.contentView;
+#ifdef TK_MAC_CALAYER_DRAWING
+    contentView = [window contentView];
+    [contentView setWantsLayer:YES];
+    CALayer *layer = [contentView layer];
+    [contentView setLayerContentsRedrawPolicy:
+	    NSViewLayerContentsRedrawOnSetNeedsDisplay];
+    NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(200, 200)];
+    [layer setContentsGravity:kCAGravityTopLeft];
+    [contentView setTkLayerImage:image];
+#endif
     TkMacOSXApplyWindowAttributes(winPtr, window);
     NSRect geometry = InitialWindowBounds(winPtr, window);
     geometry.size.width += structureRect.size.width;

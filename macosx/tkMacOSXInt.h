@@ -187,6 +187,12 @@ MODULE_SCOPE void TkpFreeGCCache(GC gc);
 #define TK_DRAW_IN_CONTEXT		1
 
 /*
+ * Experimental CALayer drawing
+ * (FIXME: should this go somewhere else?)
+ */
+#define TK_MAC_CALAYER_DRAWING	1
+
+/*
  * Prototypes of internal procs not in the stubs table.
  */
 

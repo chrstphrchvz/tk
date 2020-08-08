@@ -946,9 +946,40 @@ ConfigureRestrictProc(
 #endif
 }
 
+#ifdef TK_MAC_CALAYER_DRAWING
+- (BOOL)wantsUpdateLayer {
+    return YES;
+}
+
+- (void)updateLayer {
+    CALayer *layer = [self layer];
+    NSImage *image = [self tkLayerImage];
+    if (image) {
+	/*
+	 * Adapted from updateLayerWithImageInWindow1() example
+	 * https://developer.apple.com/documentation/appkit/nsimage?language=objc
+	 *
+	 * FIXME: using APIs only available in macOS 10.7+
+	 */
+	CGFloat desiredScaleFactor = [[self window] backingScaleFactor];
+	CGFloat actualScaleFactor = [image
+		recommendedLayerContentsScale:desiredScaleFactor];
+	id layerContents = [image
+		layerContentsForContentsScale:actualScaleFactor];
+	[layer setContents:layerContents];
+	[layer setContentsScale:actualScaleFactor];
+	[self clearTkDirtyRect];
+    }
+}
+#endif
+
 -(void) setFrameSize: (NSSize)newsize
 {
     [super setFrameSize: newsize];
+#ifdef TK_MAC_CALAYER_DRAWING
+    NSImage *image = [[NSImage alloc] initWithSize:self.bounds.size];
+    [self setTkLayerImage:image];
+#endif
     NSWindow *w = [self window];
     TkWindow *winPtr = TkMacOSXGetTkWindow(w);
     Tk_Window tkwin = (Tk_Window) winPtr;

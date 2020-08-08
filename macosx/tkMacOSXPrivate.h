@@ -444,6 +444,9 @@ VISIBILITY_HIDDEN
 }
 @property Bool tkNeedsDisplay;
 @property NSRect tkDirtyRect;
+#ifdef TK_MAC_CALAYER_DRAWING
+@property(retain) NSImage *tkLayerImage;
+#endif
 @end
 
 @interface TKContentView(TKKeyEvent)

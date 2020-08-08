@@ -14,6 +14,7 @@
  */
 
 #include "tkMacOSXPrivate.h"
+#include "tkMacOSXConstants.h"
 #include "tkMacOSXDebug.h"
 #include "tkButton.h"
 
@@ -1560,7 +1561,17 @@ TkScrollWindow(
 	     * Scroll the rectangle.
 	     */
 
+#ifndef TK_MAC_CALAYER_DRAWING
  	    [view scrollRect:scrollSrc by:NSMakeSize(dx, -dy)];
+#else
+	    NSImage *image = [view tkLayerImage];
+	    [image lockFocus];
+	    [image drawInRect:scrollDst
+		     fromRect:scrollSrc
+		    operation:NSCompositeCopy
+		     fraction:1.0];
+	    [image unlockFocus];
+#endif
   	}
     } else {
 	dmgRgn = HIShapeCreateEmpty();
@@ -1664,12 +1675,23 @@ TkMacOSXSetupDrawingContext(
 	    Tcl_Panic("TkMacOSXSetupDrawingContext(): "
 		    "no NSView to draw into !");
 	}
+#ifdef TK_MAC_CALAYER_DRAWING
+	NSImage *image = [view tkLayerImage];
+	/*
+	 * FIXME: does there need to be a check for (GET_CGCONTEXT == NULL)
+	 * before doing lockFocus?
+	 */
+	[image lockFocus];
+#endif
 	if (dc.clipRgn) {
 	    CGAffineTransform t = { .a = 1, .b = 0, .c = 0, .d = -1, .tx = 0,
 				    .ty = [view bounds].size.height};
 	    HIShapeGetBounds(dc.clipRgn, &clipBounds);
 	    clipBounds = CGRectApplyAffineTransform(clipBounds, t);
 	}
+
+// FIXME: is any of this still needed for CALayer drawing?
+#ifndef TK_MAC_CALAYER_DRAWING
 	if (view != [NSView focusView]) {
 
 	    /*
@@ -1705,6 +1727,7 @@ TkMacOSXSetupDrawingContext(
 		[view addTkDirtyRect:clipBounds];
 	    }
 	}
+#endif
 
 	dc.view = view;
 	dc.context = GET_CGCONTEXT;
@@ -1862,6 +1885,15 @@ TkMacOSXRestoreDrawingContext(
     if (dcPtr->clipRgn) {
 	CFRelease(dcPtr->clipRgn);
     }
+#ifdef TK_MAC_CALAYER_DRAWING
+    if (dcPtr->view && dcPtr->context) {
+	TKContentView *tkview = (TKContentView*) dcPtr->view;
+	NSImage *image = [tkview tkLayerImage];
+	[image unlockFocus];
+	dcPtr->context = NULL;
+	[tkview addTkDirtyRect:[dcPtr->view bounds]];
+    }
+#endif
 #ifdef TK_MAC_DEBUG
     bzero(dcPtr, sizeof(TkMacOSXDrawingContext));
 #endif /* TK_MAC_DEBUG */
