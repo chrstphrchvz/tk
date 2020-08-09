@@ -147,7 +147,6 @@ TkMacOSXCreateCGImageFromDrawableRect(
     MacDrawable *mac_drawable = (MacDrawable *) drawable;
     CGContextRef cg_context = NULL;
     CGImageRef cg_image = NULL, sub_cg_image = NULL;
-    NSBitmapImageRep *bitmap_rep = NULL;
     NSView *view = NULL;
     if (mac_drawable->flags & TK_IS_PIXMAP) {
 	/*
@@ -166,6 +165,7 @@ TkMacOSXCreateCGImageFromDrawableRect(
 	int scaleFactor = TkMacOSXNSWindowBackingScaleFactor(
 		[view window]);
 
+#ifndef TK_MAC_CALAYER_DRAWING
 	/*
 	 * Convert Tk top-left to NSView bottom-left coordinates.
 	 */
@@ -186,6 +186,7 @@ TkMacOSXCreateCGImageFromDrawableRect(
 	if ([NSView focusView] == nil) {
 	    needsToUnlockFocus = [view lockFocusIfCanDraw];
 	}
+	NSBitmapImageRep *bitmap_rep = nil;
 	if (view == [NSView focusView]) {
 	    /*
 	     * Keep using initWithFocusedViewRect: even though deprecated.
@@ -202,6 +203,39 @@ TkMacOSXCreateCGImageFromDrawableRect(
 	sub_cg_image = [bitmap_rep CGImage];
 	CGImageRetain(sub_cg_image);
 	[bitmap_rep release];
+#else
+	TKContentView *tkview = (TKContentView *)view;
+
+	// Tk and CGImage use same coordinates (top-left origin)
+	CGRect view_rect = CGRectMake(x + mac_drawable->xOff,
+		y + mac_drawable->yOff, width, height);
+	// Scale view_rect for Retina display
+	view_rect = CGRectApplyAffineTransform(view_rect,
+		CGAffineTransformMakeScale(scaleFactor, scaleFactor));
+
+	NSImage *ns_image = [tkview tkLayerImage];
+	/*
+	 * C. A. Chavez: A few different approaches were tried here.
+	 * Drawing ns_image into a new NSImage with
+	 * drawInRect:fromRect:operation:fraction: may appear to crop and
+	 * downscale in one step, but when capturing from a Retina display,
+	 * the output had neighboring pixels leaking into the downscaled
+	 * result, which I did not figure out how prevent.
+	 * Doing
+	 *	NSAffineTransform image_ctm =
+	 *		[[NSAffineTransform alloc] init];
+	 *	[image_ctm scaleBy:1.0/scaleFactor];
+	 * and then specifying @{NSImageHintCTM: image_ctm} for hints: is not
+	 * applicable, as the ns_image doesn't already have a downscaled
+	 * representation.
+	 * The following approach crops first and then downscales, and seems
+	 * to produce the best results.
+	 */
+	cg_image = [ns_image CGImageForProposedRect:NULL
+					    context:NULL
+					      hints:nil];
+	sub_cg_image = CGImageCreateWithImageInRect(cg_image, view_rect);
+#endif
 	if (force_1x_scale && (scaleFactor != 1)) {
 	    cg_image = sub_cg_image;
 	    sub_cg_image = NULL;
