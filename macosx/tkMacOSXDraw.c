@@ -112,24 +112,7 @@ TkMacOSXInitCGDrawing(
  *
  *	Extract bitmap data from a MacOSX drawable as an NSBitmapImageRep.
  *
- *      Currently only used by XGetImage and XCopyArea.  And this
- *      implementation does not work correctly.  Originally it relied on
- *      [NSBitmapImageRep initWithFocusedViewRect:view_rect] which was
- *      deprecated by Apple in OSX 10.14 and also required the use of other
- *      deprecated functions such as [NSView lockFocus]. Apple's suggested
- *      replacement is [NSView cacheDisplayInRect: toBitmapImageRep:] and that
- *      is what is being used here.  However, that method only works when the
- *      view has a valid CGContext, and a view is only guaranteed to have a
- *      valid context during a call to [NSView drawRect]. To further complicate
- *      matters, cacheDisplayInRect calls [NSView drawRect]. Essentially it is
- *      asking the view to draw a subrectangle of itself into a special
- *      graphics context which is linked to the BitmapImageRep. But our
- *      implementation of [NSView drawRect] does not allow recursive calls. If
- *      called recursively it returns immediately without doing any drawing.
- *      So the bottom line is that this function either returns a NULL pointer
- *      or a black image. To make it useful would require a significant amount
- *      of rewriting of the drawRect method. Perhaps the next release of OSX
- *      will include some more helpful ways of doing this.
+ *      Currently only used by XGetImage and XCopyArea.
  *
  * Results:
  *	Returns an NSBitmapRep representing the image of the given rectangle of
@@ -176,9 +159,7 @@ TkMacOSXBitmapRepFromDrawableRect(
 	if (cg_image) {
 	    CGImageRelease(cg_image);
 	}
-    } else if (TkMacOSXDrawableView(mac_drawable) != NULL) {
-	TKContentView *tkview = (TKContentView *)view;
-
+    } else if ((view = TkMacOSXDrawableView(mac_drawable)) != nil) {
 	/*
 	 * Convert Tk top-left to NSView bottom-left coordinates.
 	 */
@@ -189,20 +170,29 @@ TkMacOSXBitmapRepFromDrawableRect(
 		width, height);
 
 	/*
-	 * Attempt to copy from the view to a bitmapImageRep.  If the view does
-	 * not have a valid CGContext, doing this will silently corrupt memory
-	 * and make a big mess. So, in that case, we mark the view as needing
-	 * display and return NULL.
+	 * If a view already has focus, either it is the view for mac_drawable,
+	 * or it is some other view (in which case it has not been verified to
+	 * be safe to lock the focus to mac_drawable's view). If no view is
+	 * focused, then try locking focus to mac_drawable's view now and
+	 * unlock it when finished.
 	 */
-
+	BOOL needsToUnlockFocus = NO;
+	if ([NSView focusView] == nil) {
+	    needsToUnlockFocus = [view lockFocusIfCanDraw];
+	}
 	if (view == [NSView focusView]) {
-	    bitmap_rep = [view bitmapImageRepForCachingDisplayInRect: view_rect];
+	    /*
+	     * Keep using initWithFocusedViewRect: even though deprecated.
+	     * The suggested replacement cacheDisplayInRect: will not work
+	     * because it draws from scratch, whereas Tk needs to retrieve
+	     * from the backing store what was already drawn; see 685ac30727.
+	     */
+	    bitmap_rep = [[NSBitmapImageRep alloc]
+		    initWithFocusedViewRect:view_rect];
 	    [bitmap_rep retain];
-	    [view cacheDisplayInRect:view_rect toBitmapImageRep:bitmap_rep];
-	} else {
-	    TkMacOSXDbgMsg("No CGContext - cannot copy from screen to bitmap.");
-	    [tkview addTkDirtyRect:[tkview bounds]];
-	    return NULL;
+	}
+	if (needsToUnlockFocus) {
+	    [view unlockFocus];
 	}
     } else {
 	TkMacOSXDbgMsg("Invalid source drawable");

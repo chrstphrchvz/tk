@@ -137,8 +137,7 @@ TkMacOSXCreateCGImageWithXImage(
  *      is essentially never used in core Tk. At one time it was called by
  *      pTkImgPhotoDisplay, but that is no longer the case. Currently it is
  *      called two places, one of which is requesting an XY image which we do
- *      not support.  It probably does not work correctly -- see the comments
- *      for TkMacOSXBitmapRepFromDrawableRect.
+ *      not support.
  *
  * Results:
  *	Returns a newly allocated XImage containing the data from the given
