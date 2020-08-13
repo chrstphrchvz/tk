@@ -485,24 +485,6 @@ TkPutImage(
  *      or XCopyArea on macOS.  Nonetheless, these function are in the stubs
  *      table and therefore could be used by extensions.
  *
- *      This implementation does not work correctly.  Originally it relied on
- *      [NSBitmapImageRep initWithFocusedViewRect:view_rect] which was
- *      deprecated by Apple in OSX 10.14 and also required the use of other
- *      deprecated functions such as [NSView lockFocus]. Apple's suggested
- *      replacement is [NSView cacheDisplayInRect: toBitmapImageRep:] and that
- *      is what is being used here.  However, that method only works when the
- *      view has a valid CGContext, and a view is only guaranteed to have a
- *      valid context during a call to [NSView drawRect]. To further complicate
- *      matters, cacheDisplayInRect calls [NSView drawRect]. Essentially it is
- *      asking the view to draw a subrectangle of itself using a special
- *      graphics context which is linked to the BitmapImageRep. But our
- *      implementation of [NSView drawRect] does not allow recursive calls. If
- *      called recursively it returns immediately without doing any drawing.
- *      So the bottom line is that this function either returns a NULL pointer
- *      or a black image. To make it useful would require a significant amount
- *      of rewriting of the drawRect method. Perhaps the next release of OSX
- *      will include some more helpful ways of doing this.
- *
  * Results:
  *	Returns a CGImage representing the image of the given rectangle of
  *	the given drawable. The caller is responsible for releasing it.
@@ -544,7 +526,7 @@ CreateCGImageFromDrawableRect(
 	    result = CGImageCreateWithImageInRect(cg_image, image_rect);
 	    CGImageRelease(cg_image);
 	}
-    } else if (TkMacOSXGetNSViewForDrawable(mac_drawable) != nil) {
+    } else if ((view = TkMacOSXGetNSViewForDrawable(mac_drawable)) != nil) {
 
 	/*
 	 * Convert Tk top-left to NSView bottom-left coordinates.
@@ -556,20 +538,35 @@ CreateCGImageFromDrawableRect(
 		width, height);
 
 	/*
-	 * Attempt to copy from the view to a bitmapImageRep.  If the view does
-	 * not have a valid CGContext, doing this will silently corrupt memory
-	 * and make a big mess. So, in that case, we just return NULL.
+	 * If a view already has focus, then this is being called while in
+	 * drawRect:, either for mac_drawable's view or some other view
+	 * (in which case it has not been verified to be safe to lock the
+	 * focus to mac_drawable's view instead). If no view is focused,
+	 * then try locking focus to mac_drawable's view now and unlock it
+	 * when finished, as some usage (e.g. capturing a window with the
+	 * TkImg extension via XGetImage()) requires an immediate result
+	 * and will not wait until in drawRect: to call this.
 	 */
-
-	if (view == [NSView focusView]) {
-	    bitmapRep = [view bitmapImageRepForCachingDisplayInRect: view_rect];
-	    [view cacheDisplayInRect:view_rect toBitmapImageRep:bitmapRep];
-	    result = [bitmapRep CGImage];
-	    CFRelease(bitmapRep);
-	} else {
-	    TkMacOSXDbgMsg("No CGContext - cannot copy from screen to bitmap.");
-	    result = NULL;
+	BOOL needsToUnlockFocus = NO;
+	if ([NSView focusView] == nil) {
+	    needsToUnlockFocus = [view lockFocusIfCanDraw];
 	}
+	if (view == [NSView focusView]) {
+	    /*
+	     * Keep using initWithFocusedViewRect: even though deprecated.
+	     * The suggested replacement cacheDisplayInRect: will not work
+	     * because it draws from scratch, whereas Tk needs to retrieve
+	     * from the backing store what was already drawn; see 685ac30727.
+	     */
+	    bitmapRep = [[NSBitmapImageRep alloc]
+		    initWithFocusedViewRect:view_rect];
+	}
+	if (needsToUnlockFocus) {
+	    [view unlockFocus];
+	}
+	result = [bitmapRep CGImage];
+	CGImageRetain(result);
+	[bitmapRep release];
     } else {
 	TkMacOSXDbgMsg("Invalid source drawable");
     }
@@ -655,8 +652,7 @@ CreateCGImageFromPixmap(
  *      is essentially never used in core Tk. At one time it was called by
  *      pTkImgPhotoDisplay, but that is no longer the case. Currently it is
  *      called two places, one of which is requesting an XY image which we do
- *      not support.  It probably does not work correctly -- see the comments
- *      for CGImageFromDrawableRect.
+ *      not support.
  *
  * Results:
  *	Returns a newly allocated XImage containing the data from the given
