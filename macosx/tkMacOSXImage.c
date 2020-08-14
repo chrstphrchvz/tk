@@ -37,10 +37,10 @@ _XInitImageFuncPtrs(
  *      in Tk_PutImage and (currently) nowhere else.
  *
  * Results:
- *	CGImage, release after use.
+ *	CGImage (release after use), or NULL.
  *
  * Side effects:
- *	None.
+ *	If successful, allocates a CGImage.
  *
  *----------------------------------------------------------------------
  */
@@ -390,9 +390,9 @@ XCreateImage(
  *
  * TkPutImage, XPutImage --
  *
- *	Copies a rectangular subimage of an XImage into a drawable.  Currently
- *      this is only called by TkImgPhotoDisplay, using a Window as the
- *      drawable.
+ *	Copies a rectangular subimage of an XImage into a drawable.
+ *	In core Tk, this is currently only called by TkImgPhotoDisplay,
+ *	using a Window as the drawable.
  *
  * Results:
  *	None.
@@ -504,16 +504,16 @@ TkPutImage(
  *      will include some more helpful ways of doing this.
  *
  * Results:
- *	Returns an NSBitmapRep representing the image of the given rectangle of
- *      the given drawable. This object is retained. The caller is responsible
- *      for releasing it.
+ *	Returns a CGImage representing the image of the given rectangle of
+ *	the given drawable. The caller is responsible for releasing it.
+ *	If the CGImage couldn't be created, then NULL is returned.
  *
  *      NOTE: The x,y coordinates should be relative to a coordinate system
  *      with origin at the top left, as used by XImage and CGImage, not bottom
  *      left as used by NSView.
  *
  * Side effects:
- *     None
+ *	If successful, allocates a new CGImage.
  *
  *----------------------------------------------------------------------
  */
@@ -611,7 +611,7 @@ CreateCGImageFromPixmap(
  * XGetImage --
  *
  *	This function copies data from a pixmap or window into an XImage.  It
- *      is essentially never used. At one time it was called by
+ *      is essentially never used in core Tk. At one time it was called by
  *      pTkImgPhotoDisplay, but that is no longer the case. Currently it is
  *      called two places, one of which is requesting an XY image which we do
  *      not support.  It probably does not work correctly -- see the comments
@@ -623,7 +623,7 @@ CreateCGImageFromPixmap(
  *	constructed.
  *
  * Side effects:
- *	None.
+ *	If successful, allocates an XImage.
  *
  *----------------------------------------------------------------------
  */
