@@ -177,12 +177,13 @@ XGetImage(
 	    return NULL;
 	}
 
-	bitmap_rep = TkMacOSXBitmapRepFromDrawableRect(drawable,
-		x, y, width, height);
-	if (!bitmap_rep) {
-	    TkMacOSXDbgMsg("XGetImage: Failed to construct NSBitmapRep");
+	CGImageRef cg_image = TkMacOSXCreateCGImageFromDrawableRect(
+		drawable, x, y, width, height);
+	if (!cg_image) {
+	    TkMacOSXDbgMsg("XGetImage: Failed to get CGImage");
 	    return NULL;
 	}
+	bitmap_rep = [[NSBitmapImageRep alloc] initWithCGImage:cg_image];
 	bitmap_fmt = [bitmap_rep bitmapFormat];
 	size = [bitmap_rep bytesPerPlane];
 	bytes_per_row = [bitmap_rep bytesPerRow];

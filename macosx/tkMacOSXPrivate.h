@@ -267,7 +267,7 @@ MODULE_SCOPE WindowClass TkMacOSXWindowClass(TkWindow *winPtr);
 MODULE_SCOPE int	TkMacOSXIsWindowZoomed(TkWindow *winPtr);
 MODULE_SCOPE int	TkGenerateButtonEventForXPointer(Window window);
 MODULE_SCOPE EventModifiers TkMacOSXModifierState(void);
-MODULE_SCOPE NSBitmapImageRep* TkMacOSXBitmapRepFromDrawableRect(Drawable drawable,
+MODULE_SCOPE CGImageRef	TkMacOSXCreateCGImageFromDrawableRect(Drawable drawable,
 			    int x, int y, unsigned int width, unsigned int height);
 MODULE_SCOPE CGImageRef TkMacOSXCreateCGImageWithXImage(XImage *image);
 MODULE_SCOPE void       TkMacOSXDrawCGImage(Drawable d, GC gc, CGContextRef context,

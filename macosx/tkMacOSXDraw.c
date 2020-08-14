@@ -108,29 +108,29 @@ TkMacOSXInitCGDrawing(
 /*
  *----------------------------------------------------------------------
  *
- * TkMacOSXBitmapRepFromDrawableRect
+ * TkMacOSXCreateCGImageFromDrawableRect
  *
- *	Extract bitmap data from a MacOSX drawable as an NSBitmapImageRep.
+ *	Extract bitmap data from a MacOSX drawable as a CGImage.
  *
  *      Currently only used by XGetImage and XCopyArea.
  *
  * Results:
- *	Returns an NSBitmapRep representing the image of the given rectangle of
- *      the given drawable. This object is retained. The caller is responsible
- *      for releasing it.
+ *	Returns a CGImageRef representing the image of the given rectangle of
+ *	the given drawable. The caller is responsible for releasing it.
+ *	If the CGImage couldn't be created, then NULL is returned.
  *
  *      NOTE: The x,y coordinates should be relative to a coordinate system
  *      with origin at the top left, as used by XImage and CGImage, not bottom
  *      left as used by NSView.
  *
  * Side effects:
- *     None
+ *	If successful, allocates a new CGImage.
  *
  *----------------------------------------------------------------------
  */
 
-NSBitmapImageRep *
-TkMacOSXBitmapRepFromDrawableRect(
+CGImageRef
+TkMacOSXCreateCGImageFromDrawableRect(
     Drawable drawable,
     int x,
     int y,
@@ -152,10 +152,6 @@ TkMacOSXBitmapRepFromDrawableRect(
 	cg_context = TkMacOSXGetCGContextForDrawable(drawable);
 	cg_image = CGBitmapContextCreateImage((CGContextRef) cg_context);
 	sub_cg_image = CGImageCreateWithImageInRect(cg_image, image_rect);
-	if (sub_cg_image) {
-	    bitmap_rep = [NSBitmapImageRep alloc];
-	    [bitmap_rep initWithCGImage:sub_cg_image];
-	}
 	if (cg_image) {
 	    CGImageRelease(cg_image);
 	}
@@ -189,15 +185,17 @@ TkMacOSXBitmapRepFromDrawableRect(
 	     */
 	    bitmap_rep = [[NSBitmapImageRep alloc]
 		    initWithFocusedViewRect:view_rect];
-	    [bitmap_rep retain];
 	}
 	if (needsToUnlockFocus) {
 	    [view unlockFocus];
 	}
+	sub_cg_image = [bitmap_rep CGImage];
+	CGImageRetain(sub_cg_image);
+	[bitmap_rep release];
     } else {
 	TkMacOSXDbgMsg("Invalid source drawable");
     }
-    return bitmap_rep;
+    return sub_cg_image;
 }
 
 /*
@@ -273,7 +271,6 @@ XCopyArea(
 {
     TkMacOSXDrawingContext dc;
     MacDrawable *srcDraw = (MacDrawable *) src;
-    NSBitmapImageRep *bitmap_rep = NULL;
     CGImageRef img = NULL;
     CGRect bounds, srcRect, dstRect;
 
@@ -295,11 +292,8 @@ XCopyArea(
     if (srcDraw->flags & TK_IS_PIXMAP) {
 	img = TkMacOSXCreateCGImageWithDrawable(src);
     } else if (TkMacOSXDrawableWindow(src)) {
-	bitmap_rep = TkMacOSXBitmapRepFromDrawableRect(src,
+	img = TkMacOSXCreateCGImageFromDrawableRect(src,
 		src_x, src_y, width, height);
-	if (bitmap_rep) {
-	    img = [bitmap_rep CGImage];
-	}
     } else {
 	TkMacOSXDbgMsg("Invalid source drawable - neither window nor pixmap.");
     }
