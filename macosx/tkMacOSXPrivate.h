@@ -262,8 +262,7 @@ MODULE_SCOPE int	TkMacOSXIsWindowZoomed(TkWindow *winPtr);
 MODULE_SCOPE int	TkGenerateButtonEventForXPointer(Window window);
 MODULE_SCOPE void       TkMacOSXDrawCGImage(Drawable d, GC gc, CGContextRef context,
 			    CGImageRef image, unsigned long imageForeground,
-			    unsigned long imageBackground, CGRect imageBounds,
-			    CGRect srcBounds, CGRect dstBounds);
+			    unsigned long imageBackground, CGRect dstBounds);
 MODULE_SCOPE int	TkMacOSXSetupDrawingContext(Drawable d, GC gc,
 			    TkMacOSXDrawingContext *dcPtr);
 MODULE_SCOPE void	TkMacOSXRestoreDrawingContext(

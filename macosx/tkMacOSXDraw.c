@@ -291,7 +291,8 @@ TkMacOSXGetCGContextForDrawable(
  *
  * TkMacOSXDrawCGImage --
  *
- *	Draw CG image into drawable.
+ *	Draw CG image into drawable. The entire image is used, and will
+ *	be rescaled if its dimensions do not equal dstBounds.size.
  *
  * Results:
  *	None.
@@ -310,25 +311,11 @@ TkMacOSXDrawCGImage(
     CGImageRef image,
     unsigned long imageForeground,
     unsigned long imageBackground,
-    CGRect imageBounds,
-    CGRect srcBounds,
     CGRect dstBounds)
 {
     MacDrawable *macDraw = (MacDrawable *)d;
 
     if (macDraw && context && image) {
-	CGImageRef subImage = NULL;
-
-	if (!CGRectEqualToRect(imageBounds, srcBounds)) {
-	    if (!CGRectContainsRect(imageBounds, srcBounds)) {
-		TkMacOSXDbgMsg("Mismatch of sub CGImage bounds");
-	    }
-	    subImage = CGImageCreateWithImageInRect(image, CGRectOffset(
-		    srcBounds, -imageBounds.origin.x, -imageBounds.origin.y));
-	    if (subImage) {
-		image = subImage;
-	    }
-	}
 	dstBounds = CGRectOffset(dstBounds, macDraw->xOff, macDraw->yOff);
 	if (CGImageIsMask(image)) {
 	    if (macDraw->flags & TK_IS_BW_PIXMAP) {
@@ -377,9 +364,6 @@ TkMacOSXDrawCGImage(
 	CGContextDrawImage(context, dstBounds, image);
 	CGContextRestoreGState(context);
 #endif /* TK_MAC_DEBUG_IMAGE_DRAWING */
-	if (subImage) {
-	    CFRelease(subImage);
-	}
     } else {
 	TkMacOSXDbgMsg("Drawing of empty CGImage requested");
     }
