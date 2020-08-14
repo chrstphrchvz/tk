@@ -123,6 +123,11 @@ TkMacOSXInitCGDrawing(
  *      with origin at the top left, as used by XImage and CGImage, not bottom
  *      left as used by NSView.
  *
+ *	If force_1x_scale is true, then the returned CGImage will be downscaled
+ *	if necessary to have the requested width and height. Othewise, for
+ *	windows on Retina displays, the width and height of the returned CGImage
+ *	will be twice the requested width and height.
+ *
  * Side effects:
  *	If successful, allocates a new CGImage.
  *
@@ -132,6 +137,7 @@ TkMacOSXInitCGDrawing(
 CGImageRef
 TkMacOSXCreateCGImageFromDrawableRect(
     Drawable drawable,
+    int force_1x_scale,
     int x,
     int y,
     unsigned int width,
@@ -156,6 +162,9 @@ TkMacOSXCreateCGImageFromDrawableRect(
 	    CGImageRelease(cg_image);
 	}
     } else if ((view = TkMacOSXDrawableView(mac_drawable)) != nil) {
+	int scaleFactor = TkMacOSXNSWindowBackingScaleFactor(
+		[view window]);
+
 	/*
 	 * Convert Tk top-left to NSView bottom-left coordinates.
 	 */
@@ -192,6 +201,28 @@ TkMacOSXCreateCGImageFromDrawableRect(
 	sub_cg_image = [bitmap_rep CGImage];
 	CGImageRetain(sub_cg_image);
 	[bitmap_rep release];
+	if (force_1x_scale && (scaleFactor != 1)) {
+	    cg_image = sub_cg_image;
+	    sub_cg_image = NULL;
+	    // See http://blog.foundry376.com/2008/07/scaling-a-cgimage/#comment-200
+	    // create context, keeping original image properties
+	    CGColorSpaceRef colorspace = CGImageGetColorSpace(cg_image);
+	    cg_context = CGBitmapContextCreate(NULL, width, height,
+		    CGImageGetBitsPerComponent(cg_image),
+		    CGImageGetBytesPerRow(cg_image),
+		    colorspace,
+		    CGImageGetAlphaInfo(cg_image));
+	    CGColorSpaceRelease(colorspace);
+	    if (cg_context) {
+		// draw image to context (resizing it)
+		CGContextDrawImage(cg_context, CGRectMake(0, 0, width, height),
+			cg_image);
+		// extract resulting image from context
+		sub_cg_image = CGBitmapContextCreateImage(cg_context);
+		CGContextRelease(cg_context);
+	    }
+	    CGImageRelease(cg_image);
+	}
     } else {
 	TkMacOSXDbgMsg("Invalid source drawable");
     }
@@ -288,7 +319,8 @@ XCopyArea(
 	return BadDrawable;
     }
 
-    img = TkMacOSXCreateCGImageFromDrawableRect(src,
+    // Use unscaled source (TkMacOSXDrawCGImage() will implicitly downscale)
+    img = TkMacOSXCreateCGImageFromDrawableRect(src, 0,
 	    src_x, src_y, width, height);
 
     if (img) {

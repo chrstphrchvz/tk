@@ -178,7 +178,7 @@ XGetImage(
 	}
 
 	CGImageRef cg_image = TkMacOSXCreateCGImageFromDrawableRect(
-		drawable, x, y, width, height);
+		drawable, 1, x, y, width, height);
 	if (!cg_image) {
 	    TkMacOSXDbgMsg("XGetImage: Failed to get CGImage");
 	    return NULL;
