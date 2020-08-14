@@ -112,7 +112,7 @@ TkMacOSXInitCGDrawing(
  *
  *	Extract bitmap data from a MacOSX drawable as an NSBitmapImageRep.
  *
- *      This is only used by XGetImage, which is never called.  And this
+ *      Currently only used by XGetImage and XCopyArea.  And this
  *      implementation does not work correctly.  Originally it relied on
  *      [NSBitmapImageRep initWithFocusedViewRect:view_rect] which was
  *      deprecated by Apple in OSX 10.14 and also required the use of other

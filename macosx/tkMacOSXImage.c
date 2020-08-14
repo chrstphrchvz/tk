@@ -33,10 +33,10 @@ _XInitImageFuncPtrs(
  *      in Tk_PutImage and (currently) nowhere else.
  *
  * Results:
- *	CGImage, release after use.
+ *	CGImage (release after use), or NULL.
  *
  * Side effects:
- *	None.
+ *	If successful, allocates a CGImage.
  *
  *----------------------------------------------------------------------
  */
@@ -134,7 +134,7 @@ TkMacOSXCreateCGImageWithXImage(
  * XGetImage --
  *
  *	This function copies data from a pixmap or window into an XImage.  It
- *      is essentially never used. At one time it was called by
+ *      is essentially never used in core Tk. At one time it was called by
  *      pTkImgPhotoDisplay, but that is no longer the case. Currently it is
  *      called two places, one of which is requesting an XY image which we do
  *      not support.  It probably does not work correctly -- see the comments
@@ -147,7 +147,7 @@ TkMacOSXCreateCGImageWithXImage(
  *	display, the dimensions of the XImage will be 2*width x 2*height.
  *
  * Side effects:
- *	None.
+ *	If successful, allocates an XImage.
  *
  *----------------------------------------------------------------------
  */
@@ -528,9 +528,9 @@ XCreateImage(
  *
  * TkPutImage, XPutImage --
  *
- *	Copies a rectangular subimage of an XImage into a drawable.  Currently
- *      this is only called by TkImgPhotoDisplay, using a Window as the
- *      drawable.
+ *	Copies a rectangular subimage of an XImage into a drawable.
+ *	In core Tk, this is currently only called by TkImgPhotoDisplay,
+ *	using a Window as the drawable.
  *
  * Results:
  *	None.
