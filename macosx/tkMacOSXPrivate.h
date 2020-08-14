@@ -272,8 +272,7 @@ MODULE_SCOPE CGImageRef	TkMacOSXCreateCGImageFromDrawableRect(Drawable drawable,
 MODULE_SCOPE CGImageRef TkMacOSXCreateCGImageWithXImage(XImage *image);
 MODULE_SCOPE void       TkMacOSXDrawCGImage(Drawable d, GC gc, CGContextRef context,
 			    CGImageRef image, unsigned long imageForeground,
-			    unsigned long imageBackground, CGRect imageBounds,
-			    CGRect srcBounds, CGRect dstBounds);
+			    unsigned long imageBackground, CGRect dstBounds);
 MODULE_SCOPE int	TkMacOSXSetupDrawingContext(Drawable d, GC gc,
 			    int useCG, TkMacOSXDrawingContext *dcPtr);
 MODULE_SCOPE void	TkMacOSXRestoreDrawingContext(

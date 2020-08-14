@@ -527,8 +527,16 @@ XPutImage(
 	return BadDrawable;
     }
     if (dc.context) {
-	CGRect bounds, srcRect, dstRect;
+	CGRect dstRect, srcRect = CGRectMake(src_x, src_y, width, height);
+	/*
+	 * Whole image is copied before cropping. For performance,
+	 * consider revising TkMacOSXCreateCGImageWithXImage() to accept
+	 * source x/y/w/h and copy only the needed portion instead.
+	 */
 	CGImageRef img = TkMacOSXCreateCGImageWithXImage(image);
+	CGImageRef cropped = CGImageCreateWithImageInRect(img, srcRect);
+	CGImageRelease(img);
+	img = cropped;
 
 	/*
 	 * The CGContext for a pixmap is RGB only, with A = 0.
@@ -538,13 +546,9 @@ XPutImage(
 	    CGContextSetBlendMode(dc.context, kCGBlendModeSourceAtop);
 	}
 	if (img) {
-
-	    bounds = CGRectMake(0, 0, image->width, image->height);
-	    srcRect = CGRectMake(src_x, src_y, width, height);
 	    dstRect = CGRectMake(dest_x, dest_y, width, height);
-	    TkMacOSXDrawCGImage(drawable, gc, dc.context,
-				img, gc->foreground, gc->background,
-				bounds, srcRect, dstRect);
+	    TkMacOSXDrawCGImage(drawable, gc, dc.context, img,
+				gc->foreground, gc->background, dstRect);
 	    CFRelease(img);
 	} else {
 	    TkMacOSXDbgMsg("Invalid source drawable");

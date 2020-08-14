@@ -270,9 +270,8 @@ XCopyArea(
     int dest_y)
 {
     TkMacOSXDrawingContext dc;
-    MacDrawable *srcDraw = (MacDrawable *) src;
     CGImageRef img = NULL;
-    CGRect bounds, srcRect, dstRect;
+    CGRect dstRect;
 
     display->request++;
     if (!width || !height) {
@@ -289,21 +288,13 @@ XCopyArea(
 	return BadDrawable;
     }
 
-    if (srcDraw->flags & TK_IS_PIXMAP) {
-	img = TkMacOSXCreateCGImageWithDrawable(src);
-    } else if (TkMacOSXDrawableWindow(src)) {
-	img = TkMacOSXCreateCGImageFromDrawableRect(src,
-		src_x, src_y, width, height);
-    } else {
-	TkMacOSXDbgMsg("Invalid source drawable - neither window nor pixmap.");
-    }
+    img = TkMacOSXCreateCGImageFromDrawableRect(src,
+	    src_x, src_y, width, height);
 
     if (img) {
-	bounds = CGRectMake(0, 0, srcDraw->size.width, srcDraw->size.height);
-	srcRect = CGRectMake(src_x, src_y, width, height);
 	dstRect = CGRectMake(dest_x, dest_y, width, height);
 	TkMacOSXDrawCGImage(dst, gc, dc.context, img,
-		gc->foreground, gc->background, bounds, srcRect, dstRect);
+		gc->foreground, gc->background, dstRect);
 	CFRelease(img);
     } else {
 	TkMacOSXDbgMsg("Failed to construct CGImage.");
@@ -348,7 +339,7 @@ XCopyPlane(
     TkMacOSXDrawingContext dc;
     MacDrawable *srcDraw = (MacDrawable *) src;
     MacDrawable *dstDraw = (MacDrawable *) dst;
-    CGRect bounds, srcRect, dstRect;
+    CGRect srcRect, dstRect;
     display->request++;
     if (!width || !height) {
 	/* TkMacOSXDbgMsg("Drawing of empty area requested"); */
@@ -414,13 +405,9 @@ XCopyPlane(
 		    CGImageRelease(submask);
 		    CGImageRelease(subimage);
 		} else {
-		    bounds = CGRectMake(0, 0,
-			    srcDraw->size.width, srcDraw->size.height);
-		    srcRect = CGRectMake(src_x, src_y, width, height);
 		    dstRect = CGRectMake(dest_x, dest_y, width, height);
 		    TkMacOSXDrawCGImage(dst, gc, dc.context, img,
-			    gc->foreground, imageBackground, bounds,
-			    srcRect, dstRect);
+			    gc->foreground, imageBackground, dstRect);
 		    CGImageRelease(img);
 		}
 	    } else {
@@ -651,7 +638,8 @@ TkMacOSXGetCGContextForDrawable(
  *
  * TkMacOSXDrawCGImage --
  *
- *	Draw CG image into drawable.
+ *	Draw CG image into drawable. The entire image is used, and will
+ *	be rescaled if its dimensions do not equal dstBounds.size.
  *
  * Results:
  *	None.
@@ -670,25 +658,11 @@ TkMacOSXDrawCGImage(
     CGImageRef image,
     unsigned long imageForeground,
     unsigned long imageBackground,
-    CGRect imageBounds,
-    CGRect srcBounds,
     CGRect dstBounds)
 {
     MacDrawable *macDraw = (MacDrawable *) d;
 
     if (macDraw && context && image) {
-	CGImageRef subImage = NULL;
-
-	if (!CGRectEqualToRect(imageBounds, srcBounds)) {
-	    if (!CGRectContainsRect(imageBounds, srcBounds)) {
-		TkMacOSXDbgMsg("Mismatch of sub CGImage bounds");
-	    }
-	    subImage = CGImageCreateWithImageInRect(image, CGRectOffset(
-		    srcBounds, -imageBounds.origin.x, -imageBounds.origin.y));
-	    if (subImage) {
-		image = subImage;
-	    }
-	}
 	dstBounds = CGRectOffset(dstBounds, macDraw->xOff, macDraw->yOff);
 	if (CGImageIsMask(image)) {
 	    if (macDraw->flags & TK_IS_BW_PIXMAP) {
@@ -737,9 +711,6 @@ TkMacOSXDrawCGImage(
 	CGContextDrawImage(context, dstBounds, image);
 	CGContextRestoreGState(context);
 #endif /* TK_MAC_DEBUG_IMAGE_DRAWING */
-	if (subImage) {
-	    CFRelease(subImage);
-	}
     } else {
 	TkMacOSXDbgMsg("Drawing of empty CGImage requested");
     }
