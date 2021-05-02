@@ -11,6 +11,8 @@
 
 #include "tkWinInt.h"
 
+#define TRY_RGBA
+
 static int		DestroyImage(XImage* data);
 static unsigned long	ImageGetPixel(XImage *image, int x, int y);
 static int		PutPixel(XImage *image, int x, int y,
@@ -122,14 +124,14 @@ PutPixel(
     switch  (image->bits_per_pixel) {
     case 32:
 	/*
-	 * Pixel is DWORD: 0x00BBGGRR
+	 * Pixel is DWORD: 0x00RRGGBB
 	 */
 
 	destPtr[3] = 0;
 	/* FALLTHRU */
     case 24:
 	/*
-	 * Pixel is triplet: 0xBBGGRR.
+	 * Pixel is triplet: 0xRRGGBB. (Was only this comment wrong?)
 	 */
 
 	destPtr[0] = (unsigned char) GetBValue(pixel);
@@ -202,7 +204,7 @@ PutPixel(
 XImage *
 XCreateImage(
     Display *display,
-    Visual *visual,
+    Visual *visual, /* FIXME: unused */
     unsigned int depth,
     int format,
     int offset,

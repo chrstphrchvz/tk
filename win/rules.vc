@@ -1549,7 +1549,7 @@ guilflags = $(lflags) -subsystem:windows
 winlibs   = kernel32.lib advapi32.lib
 
 !if $(NEED_TK)
-winlibs = $(winlibs) gdi32.lib user32.lib uxtheme.lib
+winlibs = $(winlibs) gdi32.lib user32.lib uxtheme.lib Msimg32.lib
 !endif
 
 # Avoid 'unresolved external symbol __security_cookie' errors.

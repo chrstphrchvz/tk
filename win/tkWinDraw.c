@@ -501,6 +501,113 @@ XCopyPlane(
  */
 
 int
+TkpPutRGBAImage(
+    unsigned long *colors,	/* Array of pixel values used by this image.
+				 * May be NULL. */
+    int ncolors,		/* Number of colors used, or 0. */
+    Display *display,
+    Drawable d,			/* Destination drawable. */
+    GC gc,
+    XImage *image,		/* Source image. */
+    int src_x, int src_y,	/* Offset of subimage. */
+    int dest_x, int dest_y,	/* Position of subimage origin in drawable. */
+    unsigned int width, unsigned int height)
+				/* Dimensions of subimage. */
+{
+    HDC dc, dcMem;
+    TkWinDCState state;
+    BITMAPINFO *infoPtr;
+    HBITMAP bitmap;
+    char *data;
+    BLENDFUNCTION bf;
+    bf.BlendOp = AC_SRC_OVER;
+    bf.BlendFlags = 0;
+    bf.SourceConstantAlpha = 0xff;
+    bf.AlphaFormat = AC_SRC_ALPHA;
+
+    display->request++;
+
+    dc = TkWinGetDrawableDC(display, d, &state);
+    SetROP2(dc, tkpWinRopModes[gc->function]);
+    dcMem = CreateCompatibleDC(dc);
+
+    if (image->bits_per_pixel == 1) {
+	/*
+	 * If the image isn't in the right format, we have to copy it into a
+	 * new buffer in MSBFirst and word-aligned format.
+	 */
+
+	if ((image->bitmap_bit_order != MSBFirst)
+		|| (image->bitmap_pad != sizeof(WORD))) {
+	    data = TkAlignImageData(image, sizeof(WORD), MSBFirst);
+	    bitmap = CreateBitmap(image->width, image->height, 1, 1, data);
+	    ckfree(data);
+	} else {
+	    bitmap = CreateBitmap(image->width, image->height, 1, 1,
+		    image->data);
+	}
+	SetTextColor(dc, gc->foreground);
+	SetBkColor(dc, gc->background);
+    } else {
+	int i, usePalette;
+
+	/*
+	 * Do not use a palette for TrueColor images.
+	 */
+
+	usePalette = (image->bits_per_pixel < 16);
+
+	if (usePalette) {
+	    infoPtr = ckalloc(sizeof(BITMAPINFOHEADER)
+		    + sizeof(RGBQUAD)*ncolors);
+	} else {
+	    infoPtr = ckalloc(sizeof(BITMAPINFOHEADER));
+	}
+
+	infoPtr->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	infoPtr->bmiHeader.biWidth = image->width;
+	infoPtr->bmiHeader.biHeight = -image->height; /* Top-down order */
+	infoPtr->bmiHeader.biPlanes = 1;
+	infoPtr->bmiHeader.biBitCount = image->bits_per_pixel;
+	infoPtr->bmiHeader.biCompression = BI_RGB;
+	infoPtr->bmiHeader.biSizeImage = 0;
+	infoPtr->bmiHeader.biXPelsPerMeter = 0;
+	infoPtr->bmiHeader.biYPelsPerMeter = 0;
+	infoPtr->bmiHeader.biClrImportant = 0;
+
+	if (usePalette) {
+	    infoPtr->bmiHeader.biClrUsed = ncolors;
+	    for (i = 0; i < ncolors; i++) {
+		infoPtr->bmiColors[i].rgbBlue = GetBValue(colors[i]);
+		infoPtr->bmiColors[i].rgbGreen = GetGValue(colors[i]);
+		infoPtr->bmiColors[i].rgbRed = GetRValue(colors[i]);
+		infoPtr->bmiColors[i].rgbReserved = 0;
+	    }
+	} else {
+	    infoPtr->bmiHeader.biClrUsed = 0;
+	}
+	bitmap = CreateDIBitmap(dc, &infoPtr->bmiHeader, CBM_INIT,
+		image->data, infoPtr, DIB_RGB_COLORS);
+	ckfree(infoPtr);
+    }
+    if (!bitmap) {
+	Tcl_Panic("Fail to allocate bitmap"); /* FIXME: this does not return */
+	DeleteDC(dcMem);
+    	TkWinReleaseDrawableDC(d, dc, &state);
+	return BadValue;
+    }
+    bitmap = SelectObject(dcMem, bitmap);
+    fprintf(stderr, "%d\t%d\t%d\t%d\tAlphaBlend %c\n",
+	    image->format, image->byte_order, image->bitmap_pad, image->bits_per_pixel,
+	    AlphaBlend(dc, dest_x, dest_y, (int) width, (int) height, dcMem, src_x, src_y,
+	    (int) width, (int) height, bf) ? '1' : '0');
+    DeleteObject(SelectObject(dcMem, bitmap));
+    DeleteDC(dcMem);
+    TkWinReleaseDrawableDC(d, dc, &state);
+    return Success;
+}
+
+int
 TkPutImage(
     unsigned long *colors,	/* Array of pixel values used by this image.
 				 * May be NULL. */

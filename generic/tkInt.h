@@ -1307,7 +1307,12 @@ MODULE_SCOPE void	TkpCancelWarp(TkDisplay *dispPtr);
 MODULE_SCOPE int	TkListCreateFrame(ClientData clientData,
 			    Tcl_Interp *interp, Tcl_Obj *listObj,
 			    int toplevel, Tcl_Obj *nameObj);
-
+#ifdef TK_CAN_RENDER_RGBA
+MODULE_SCOPE int	TkpPutRGBAImage(unsigned long *colors, int ncolors,
+			     Display* display, Drawable drawable, GC gc, XImage* image,
+			     int src_x, int src_y, int dest_x, int dest_y,
+			     unsigned int width, unsigned int height);
+#endif
 #ifdef _WIN32
 #define TkParseColor XParseColor
 #else

@@ -628,7 +628,8 @@ TkImgPhotoDisplay(
      */
 
     unsigned char *rgbaPixels = instancePtr->masterPtr->pix32;
-    XImage *photo = XCreateImage(display, NULL, 32, ZPixmap, 0, (char*)rgbaPixels,
+    fprintf(stderr, "TkImgPD\n");
+    XImage *photo = XCreateImage(display, instancePtr->visualInfo.visual, 32, ZPixmap, 0, (char*)rgbaPixels,
 				 (unsigned int)instancePtr->width,
 				 (unsigned int)instancePtr->height,
 				 0, (unsigned int)(4 * instancePtr->width));

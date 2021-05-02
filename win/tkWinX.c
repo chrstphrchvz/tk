@@ -520,9 +520,15 @@ TkWinDisplayChanged(
     } else if (screen->root_depth >= 24) {
 	screen->root_visual->c_class = TrueColor;
 	screen->root_visual->map_entries = 256;
+#if 0
 	screen->root_visual->red_mask = 0xff;
 	screen->root_visual->green_mask = 0xff00;
 	screen->root_visual->blue_mask = 0xff0000;
+#else
+	screen->root_visual->blue_mask = 0xff;
+	screen->root_visual->green_mask = 0xff00;
+	screen->root_visual->red_mask = 0xff0000;
+#endif
     }
     screen->root_visual->bits_per_rgb = screen->root_depth;
     ReleaseDC(NULL, dc);

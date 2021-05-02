@@ -135,4 +135,11 @@
 #define TkpCreateNativeBitmap(display, source) None
 #define TkpGetNativeAppBitmap(display, name, w, h) None
 
+/*
+ * Inform tkImgPhInstance.c that we implement TkpPutRGBAImage to render RGBA
+ * images directly into a window.
+ */
+
+#define TK_CAN_RENDER_RGBA
+
 #endif /* _WINPORT */
