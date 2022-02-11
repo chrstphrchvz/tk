@@ -378,7 +378,11 @@ TkMacOSXDrawAllViews(
 		if (dirtyCount) {
 		   continue;
 		}
+#if TK_MAC_CGIMAGE_DRAWING
+		// Layer-backed view: let NSView schedule updates
+#else
 		[[view layer] setNeedsDisplayInRect:[view tkDirtyRect]];
+#endif
 		[view setNeedsDisplay:YES];
 	    }
 	} else {
@@ -392,6 +396,10 @@ TkMacOSXDrawAllViews(
 		       untilDate:[NSDate distantPast]
 			  inMode:GetRunLoopMode(TkMacOSXGetModalSession())
 			 dequeue:NO];
+#if TK_MAC_CGIMAGE_DRAWING
+    // Should no longer ever need to setNeedsDisplay:NO
+    // TODO: warn if it is ever still YES here?
+#else
     for (NSWindow *window in [NSApp windows]) {
 	if ([[window contentView] isMemberOfClass:[TKContentView class]]) {
 	    TKContentView *view = [window contentView];
@@ -407,6 +415,7 @@ TkMacOSXDrawAllViews(
 	    }
 	}
     }
+#endif
     [NSApp setNeedsToDraw:NO];
 }
 

@@ -970,22 +970,30 @@ ConfigureRestrictProc(
 {
     self = [super initWithFrame:frame];
     if (self) {
+#if TK_MAC_CGIMAGE_DRAWING
+    // Want layer-backed view, not layer-hosting
+#else
 	/*
 	 * The layer must exist before we set wantsLayer to YES.
 	 */
 
 	self.layer = [CALayer layer];
+#endif
 	self.wantsLayer = YES;
 	self.layerContentsRedrawPolicy = NSViewLayerContentsRedrawOnSetNeedsDisplay;
 	self.layer.contentsGravity = self.layer.contentsAreFlipped ?
 	    kCAGravityTopLeft : kCAGravityBottomLeft;
 
+#if TK_MAC_CGIMAGE_DRAWING
+    // Want layer-backed view, not layer-hosting
+#else
 	/*
 	 * Nothing gets drawn at all if the layer does not have a delegate.
 	 * Currently, we do not implement any methods of the delegate, however.
 	 */
 
 	self.layer.delegate = (id) self;
+#endif
 	trackingArea = [[NSTrackingArea alloc]
 			   initWithRect:[self bounds]
 				options:(NSTrackingMouseEnteredAndExited |
@@ -1000,6 +1008,23 @@ ConfigureRestrictProc(
     return self;
 }
 
+#if TK_MAC_CGIMAGE_DRAWING
+- (BOOL) wantsUpdateLayer
+{
+    return YES;
+}
+- (void) updateLayer {
+    if (0) fprintf(stderr, "updateLayer\n");
+    CGContextRef ctx = self.tkLayerBitmapContext;
+
+    if (ctx) {
+	CGImageRef newImg = CGBitmapContextCreateImage(ctx);
+	self.layer.contents = (__bridge id)newImg;
+	CGImageRelease(newImg); // will quickly leak memory if this is missing
+	[self clearTkDirtyRect];
+    }
+}
+#else
 /*
  * We will just use drawRect.
  */
@@ -1008,6 +1033,7 @@ ConfigureRestrictProc(
 {
     return NO;
 }
+#endif
 
 - (void) viewDidChangeBackingProperties
 {
@@ -1028,7 +1054,11 @@ ConfigureRestrictProc(
     _tkDirtyRect = NSUnionRect(_tkDirtyRect, rect);
     [NSApp setNeedsToDraw:YES];
     [self setNeedsDisplay:YES];
+#if TK_MAC_CGIMAGE_DRAWING
+    // Layer-backed: want the NSView to control when to draw
+#else
     [[self layer] setNeedsDisplay];
+#endif
 }
 
 - (void) clearTkDirtyRect
@@ -1038,6 +1068,9 @@ ConfigureRestrictProc(
     [NSApp setNeedsToDraw:NO];
 }
 
+#if TK_MAC_CGIMAGE_DRAWING
+// Remove drawRect: just to make sure it isn’t used
+#else
 - (void) drawRect: (NSRect) rect
 {
     (void)rect;
@@ -1071,10 +1104,25 @@ ConfigureRestrictProc(
     fprintf(stderr, "drawRect: done.\n");
 #endif
 }
+#endif
 
 -(void) setFrameSize: (NSSize)newsize
 {
     [super setFrameSize: newsize];
+#if TK_MAC_CGIMAGE_DRAWING
+    CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef newCtx = CGBitmapContextCreate(
+	    NULL, self.layer.contentsScale * newsize.width,
+	    self.layer.contentsScale * newsize.height, 8, 0, colorspace,
+	    kCGBitmapByteOrder32Big | kCGImageAlphaNoneSkipLast // will also need to specify this when capturing
+    );
+    if (0) fprintf(stderr, "setFrameSize %.1f %s %p %p %ld\n", (float)self.layer.contentsScale,
+	    NSStringFromSize(newsize).UTF8String, colorspace, newCtx, self.tkLayerBitmapContext ? (long)CFGetRetainCount(self.tkLayerBitmapContext) : INT_MIN);
+    if (0) fprintf(stderr, "sFS %p %ld\n", self.tkLayerBitmapContext, (long)(self.tkLayerBitmapContext ? CFGetRetainCount(self.tkLayerBitmapContext) : LONG_MIN));
+    CGContextRelease(self.tkLayerBitmapContext); // will also need this in a destructor somewhere
+    self.tkLayerBitmapContext = newCtx;
+    CGColorSpaceRelease(colorspace);
+#endif
     NSWindow *w = [self window];
     TkWindow *winPtr = TkMacOSXGetTkWindow(w);
     Tk_Window tkwin = (Tk_Window)winPtr;

@@ -1108,7 +1108,11 @@ XMaxRequestSize(
 int
 TkScrollWindow(
     Tk_Window tkwin,		/* The window to be scrolled. */
+#if TK_MAC_CGIMAGE_DRAWING
+    GC gc,			/* GC for window to be scrolled. */
+#else
     TCL_UNUSED(GC),			/* GC for window to be scrolled. */
+#endif
     int x, int y,		/* Position rectangle to be scrolled. */
     int width, int height,
     int dx, int dy,		/* Distance rectangle should be moved. */
@@ -1122,7 +1126,13 @@ TkScrollWindow(
     NSRect bounds, viewSrcRect, srcRect, dstRect;
     int result = 0;
 
+#if TK_MAC_CGIMAGE_DRAWING
+    // Should behave more like TkScrollWindow on other platforms
+    if (XCopyArea(Tk_Display(tkwin), drawable, drawable, gc, x, y,
+	    (unsigned)width, (unsigned)height, x+dx, y+dy) == Success) {
+#else
     if (view) {
+#endif
 
   	/*
 	 * Get the scroll area in NSView coordinates (origin at bottom left).
@@ -1133,11 +1143,15 @@ TkScrollWindow(
 		bounds.size.height - height - (macDraw->yOff + y),
 		width, height);
 
+#if TK_MAC_CGIMAGE_DRAWING
+	    // Already scrolled using XCopyArea()
+#else
 	/*
 	 * Scroll the rectangle.
 	 */
 
 	[view scrollRect:viewSrcRect by:NSMakeSize(dx, -dy)];
+#endif
 
 	/*
 	 * Compute the damage region, using Tk coordinates (origin at top left).
@@ -1261,7 +1275,11 @@ TkMacOSXSetupDrawingContext(
     if (!dc.context) {
 	NSRect drawingBounds, currentBounds;
 	dc.view = view;
+#if TK_MAC_CGIMAGE_DRAWING
+	dc.context = view.tkLayerBitmapContext;
+#else
 	dc.context = GET_CGCONTEXT;
+#endif
 	if (dc.clipRgn) {
 	    CGRect clipBounds;
 	    CGAffineTransform t = { .a = 1, .b = 0, .c = 0, .d = -1, .tx = 0,
@@ -1273,6 +1291,10 @@ TkMacOSXSetupDrawingContext(
 	    drawingBounds = [view bounds];
 	}
 
+#if TK_MAC_CGIMAGE_DRAWING
+	[view addTkDirtyRect:drawingBounds];
+	// TODO: handle retina scaling (here, or somewhere else--e.g. context creation?)
+#else
 	/*
 	 * We can only draw into the NSView which is the current focusView.
 	 * When the current [NSView focusView] is nil, the CGContext for
@@ -1307,6 +1329,7 @@ TkMacOSXSetupDrawingContext(
 	if (!NSContainsRect(currentBounds, drawingBounds)) {
 	    [view addTkDirtyRect:drawingBounds];
 	}
+#endif
     }
 
     /*
@@ -1444,6 +1467,10 @@ end:
 	dc.clipRgn = NULL;
     }
     *dcPtr = dc;
+#if TK_MAC_CGIMAGE_DRAWING
+    // The goal is to allow immediate drawing; canDraw == 0 should happen far less often.
+    if (0) fprintf(stderr, "tkmacosxsdc canDraw %d\n", canDraw);
+#endif
     return canDraw;
 }
 
