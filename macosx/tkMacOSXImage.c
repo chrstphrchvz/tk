@@ -666,6 +666,10 @@ CreateCGImageFromDrawableRect(
 	    TkMacOSXDbgMsg("Invalid source drawable");
 	    return NULL;
 	}
+#if TK_MAC_CGIMAGE_DRAWING
+	cg_context = ((TKContentView *)view).tkLayerBitmapContext;
+	CGContextRetain(cg_context);
+#else
 	NSSize size = view.frame.size;
 	NSUInteger view_width = size.width, view_height = size.height;
         NSUInteger bytesPerPixel = 4,
@@ -678,6 +682,7 @@ CreateCGImageFromDrawableRect(
 			 kCGBitmapByteOrder32Big);
 	CFRelease(colorSpace);
 	[view.layer renderInContext:cg_context];
+#endif
     }
     if (cg_context) {
 	cg_image = CGBitmapContextCreateImage(cg_context);

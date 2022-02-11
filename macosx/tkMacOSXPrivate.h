@@ -426,6 +426,9 @@ VISIBILITY_HIDDEN
 }
 @property Bool tkNeedsDisplay;
 @property NSRect tkDirtyRect;
+#if TK_MAC_CGIMAGE_DRAWING
+@property CGContextRef tkLayerBitmapContext;
+#endif
 @end
 
 @interface TKContentView(TKKeyEvent)
