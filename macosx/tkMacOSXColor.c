@@ -530,6 +530,46 @@ TkMacOSXGetNSColor(
     return nsColor;
 }
 
+
+#define STIPPLE_TEST 0
+
+static void
+StippleCallback(
+    void *info,
+    CGContextRef targetContext)
+{
+#if STIPPLE_TEST
+// example stolen from Quartz 2D Programming Guide
+    CGFloat subunit = 5; // the pattern cell itself is 16 by 18
+ 
+    CGRect  myRect1 = {{0,0}, {subunit, subunit}},
+            myRect2 = {{subunit, subunit}, {subunit, subunit}},
+            myRect3 = {{0,subunit}, {subunit, subunit}},
+            myRect4 = {{subunit,0}, {subunit, subunit}};
+ 
+    CGContextSetRGBFillColor (targetContext, 0, 0, 1, 0.5);
+    CGContextFillRect (targetContext, myRect1);
+    CGContextSetRGBFillColor (targetContext, 1, 0, 0, 0.5);
+    CGContextFillRect (targetContext, myRect2);
+    CGContextSetRGBFillColor (targetContext, 0, 1, 0, 0.5);
+    CGContextFillRect (targetContext, myRect3);
+    CGContextSetRGBFillColor (targetContext, .5, 0, .5, 0.5);
+    CGContextFillRect (targetContext, myRect4);
+#else
+    GC gc = (GC)info;
+    MacDrawable *stipplePixmap = (MacDrawable *)(gc->stipple);
+    CGRect stippleBounds = {
+	.origin = CGPointZero,
+	.size = stipplePixmap->size
+    };
+    CGContextRef stipplePixmapContext = TkMacOSXGetCGContextForDrawable(gc->stipple);
+    CGImageRef stippleCGImage = CGBitmapContextCreateImage(stipplePixmapContext);
+    /* possibly duplicating CreateCGImageFromPixmap() */
+    CGContextDrawImage(targetContext, stippleBounds, stippleCGImage);
+    CGImageRelease(stippleCGImage);
+#endif
+}
+
 /*
  *----------------------------------------------------------------------
  *
@@ -586,8 +626,52 @@ TkMacOSXSetColorInContext(
 	}
     }
     if (cgColor) {
-	CGContextSetFillColorWithColor(context, cgColor);
-	CGContextSetStrokeColorWithColor(context, cgColor);
+	if (gc->stipple == None) {
+	    CGContextSetFillColorWithColor(context, cgColor);
+	    CGContextSetStrokeColorWithColor(context, cgColor);
+	} else {
+#if STIPPLE_TEST
+	    CGColorSpaceRef stippleColorSpace = CGColorSpaceCreatePattern(NULL);
+	    CGContextSetFillColorSpace(context, stippleColorSpace);
+	    CGContextSetStrokeColorSpace(context, stippleColorSpace);
+	    CGColorSpaceRelease(stippleColorSpace);
+	    CGRect stippleBounds = CGRectMake(0, 0, 16, 18);
+	    CGColorSpaceRef patternSpace = CGColorSpaceCreatePattern(NULL);
+	    CGFloat stippleComponents[1] = {1.0};
+#else
+	    MacDrawable *stipplePixmap = (MacDrawable *)(gc->stipple);
+	    CGRect stippleBounds = {
+		    .origin = CGPointZero,
+		    .size = stipplePixmap->size
+	    };
+	    CGColorSpaceRef baseSpace = CGColorSpaceCreateDeviceRGB();
+	    CGColorSpaceRef patternSpace = CGColorSpaceCreatePattern(baseSpace);
+	    CGColorSpaceRelease(baseSpace);
+	    CGFloat stippleComponents[4];
+	    //stippleComponents[4] = {1.0, 0.6, 0.0, 1.0};
+	    stippleComponents[3] = 1.0;
+	    GetRGBA(entry, pixel, stippleComponents);
+#endif
+	    CGContextSetFillColorSpace(context, patternSpace);
+	    CGContextSetStrokeColorSpace(context, patternSpace);
+	    CGColorSpaceRelease(patternSpace);
+	    CGPatternCallbacks stippleCallbacks = {
+		    .version = 0,
+		    .drawPattern = StippleCallback,
+		    .releaseInfo = NULL
+	    };
+	    CGPatternRef stipplePattern = CGPatternCreate(gc, stippleBounds,
+		    CGAffineTransformMakeTranslation(gc->ts_x_origin, gc->ts_y_origin),
+		    stippleBounds.size.width, stippleBounds.size.height,
+		    kCGPatternTilingConstantSpacing /* not sure which to pick nor whether this matters for Tk */,
+		    STIPPLE_TEST /* TODO: pass false here when done */,
+		    &stippleCallbacks);
+
+	    CGContextSetFillPattern(context, stipplePattern, stippleComponents);
+	    CGContextSetStrokePattern(context, stipplePattern, stippleComponents);
+	    CGPatternRelease(stipplePattern);
+	}
+
 	CGColorRelease(cgColor);
     }
     if (err != noErr) {
