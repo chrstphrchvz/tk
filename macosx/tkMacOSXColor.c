@@ -533,8 +533,25 @@ TkMacOSXGetNSColor(
 
 #define STIPPLE_TEST 0
 
+typedef struct PatternInfoStruct {
+    CGImageRef image; // stipple or tile image
+    CGColorRef fg, bg;
+    CGRect bounds;
+} PatternInfoStruct;
+
 static void
-StippleCallback(
+ReleaseInfoCallback(
+    void *info)
+{
+    PatternInfoStruct *p = (PatternInfoStruct *)info;
+    CGColorRelease(p->fg);
+    CGColorRelease(p->bg);
+    CGImageRelease(p->image);
+    ckfree(p);
+}
+
+static void
+DrawPatternCallback(
     void *info,
     CGContextRef targetContext)
 {
@@ -556,17 +573,22 @@ StippleCallback(
     CGContextSetRGBFillColor (targetContext, .5, 0, .5, 0.5);
     CGContextFillRect (targetContext, myRect4);
 #else
-    GC gc = (GC)info;
-    MacDrawable *stipplePixmap = (MacDrawable *)(gc->stipple);
-    CGRect stippleBounds = {
-	.origin = CGPointZero,
-	.size = stipplePixmap->size
-    };
-    CGContextRef stipplePixmapContext = TkMacOSXGetCGContextForDrawable(gc->stipple);
-    CGImageRef stippleCGImage = CGBitmapContextCreateImage(stipplePixmapContext);
-    /* possibly duplicating CreateCGImageFromPixmap() */
-    CGContextDrawImage(targetContext, stippleBounds, stippleCGImage);
-    CGImageRelease(stippleCGImage);
+    PatternInfoStruct *p = (PatternInfoStruct *)info;
+
+    if (p->fg) {
+	// stipple; possibly duplicating XCopyPlane() approach
+	if (p->bg) {
+	    // Background for FillOpaqueStippled
+	    CGContextSetFillColorWithColor(targetContext, p->bg);
+	    CGContextFillRect(targetContext, p->bounds);
+	}
+	CGContextClipToMask(targetContext, p->bounds, p->image);
+	CGContextSetFillColorWithColor(targetContext, p->fg);
+	CGContextFillRect(targetContext, p->bounds);
+    } else {
+	// tile
+	CGContextDrawImage(targetContext, p->bounds, p->image);
+    }
 #endif
 }
 
@@ -626,50 +648,95 @@ TkMacOSXSetColorInContext(
 	}
     }
     if (cgColor) {
-	if (gc->stipple == None) {
-	    CGContextSetFillColorWithColor(context, cgColor);
-	    CGContextSetStrokeColorWithColor(context, cgColor);
-	} else {
-#if STIPPLE_TEST
-	    CGColorSpaceRef stippleColorSpace = CGColorSpaceCreatePattern(NULL);
-	    CGContextSetFillColorSpace(context, stippleColorSpace);
-	    CGContextSetStrokeColorSpace(context, stippleColorSpace);
-	    CGColorSpaceRelease(stippleColorSpace);
-	    CGRect stippleBounds = CGRectMake(0, 0, 16, 18);
+	CGContextSetFillColorWithColor(context, cgColor);
+	CGContextSetStrokeColorWithColor(context, cgColor);
+
+	/*
+	 * Unless it is made clear that gc->background is used for
+	 * FillOpaqueStippled and that pixel is ignored for
+	 * FillTiled, none of this really belongs in
+	 * TkMacOSXSetColorInContext()
+	 */
+	if (
+		(gc->stipple &&
+			(gc->fill_style == FillStippled ||
+			gc->fill_style == FillOpaqueStippled)
+		) || (gc->tile && gc->fill_style == FillTiled)
+	) {
+	    /*
+	     * Use color pattern to also support FillTiled, FillOpaqueStippled;
+	     * stencil pattern would only support FillStippled
+	     */
+	    CGFloat alpha = 1.0;
 	    CGColorSpaceRef patternSpace = CGColorSpaceCreatePattern(NULL);
-	    CGFloat stippleComponents[1] = {1.0};
-#else
-	    MacDrawable *stipplePixmap = (MacDrawable *)(gc->stipple);
-	    CGRect stippleBounds = {
-		    .origin = CGPointZero,
-		    .size = stipplePixmap->size
-	    };
-	    CGColorSpaceRef baseSpace = CGColorSpaceCreateDeviceRGB();
-	    CGColorSpaceRef patternSpace = CGColorSpaceCreatePattern(baseSpace);
-	    CGColorSpaceRelease(baseSpace);
-	    CGFloat stippleComponents[4];
-	    //stippleComponents[4] = {1.0, 0.6, 0.0, 1.0};
-	    stippleComponents[3] = 1.0;
-	    GetRGBA(entry, pixel, stippleComponents);
-#endif
 	    CGContextSetFillColorSpace(context, patternSpace);
 	    CGContextSetStrokeColorSpace(context, patternSpace);
 	    CGColorSpaceRelease(patternSpace);
+#if STIPPLE_TEST
+	    // example stolen from Quartz 2D Programming Guide
+	    CGRect stippleBounds = CGRectMake(0, 0, 16, 18);
+#endif
+	    PatternInfoStruct* p = (PatternInfoStruct*)ckalloc(
+		    sizeof(PatternInfoStruct));
+	    p->bounds.origin = CGPointZero;
+	    p->fg = NULL;
+	    p->bg = NULL;
+	    switch (gc->fill_style) {
+	    default:
+	    break;
+	    case FillSolid:
+	    break;
+	    case FillOpaqueStippled:
+		TkSetMacColor(gc->background, &(p->bg));
+		// fall through
+	    case FillStippled:
+		p->fg = cgColor;
+		CGColorRetain(p->fg);
+		// This may not work when drawing into monochrome bitmaps
+		p->image = CGBitmapContextCreateImage(
+			TkMacOSXGetCGContextForDrawable(gc->stipple)
+		);
+		p->bounds.size = ((MacDrawable*)(gc->stipple))->size;
+	    break;
+	    case FillTiled:
+		// This may not work when drawing into monochrome bitmaps
+		p->image = CGBitmapContextCreateImage(
+			TkMacOSXGetCGContextForDrawable(gc->tile)
+		);
+		p->bounds.size = ((MacDrawable*)(gc->tile))->size;
+	    break;
+	    }
 	    CGPatternCallbacks stippleCallbacks = {
 		    .version = 0,
-		    .drawPattern = StippleCallback,
-		    .releaseInfo = NULL
+		    .drawPattern = DrawPatternCallback,
+		    .releaseInfo = ReleaseInfoCallback
 	    };
-	    CGPatternRef stipplePattern = CGPatternCreate(gc, stippleBounds,
-		    CGAffineTransformMakeTranslation(gc->ts_x_origin, gc->ts_y_origin),
-		    stippleBounds.size.width, stippleBounds.size.height,
-		    kCGPatternTilingConstantSpacing /* not sure which to pick nor whether this matters for Tk */,
-		    STIPPLE_TEST /* TODO: pass false here when done */,
-		    &stippleCallbacks);
+	    if (0) fprintf(stderr, "%+d,%+d\n", gc->ts_x_origin, gc->ts_y_origin);
+	    CGPatternRef pattern = CGPatternCreate(p, p->bounds,
 
-	    CGContextSetFillPattern(context, stipplePattern, stippleComponents);
-	    CGContextSetStrokePattern(context, stipplePattern, stippleComponents);
-	    CGPatternRelease(stipplePattern);
+		    /*
+		     * The exact origin of the pattern does not match X11.
+		     * Currently, resizing a toplevel horizontally also shifts the
+		     * pattern in the same direction, which does not happen on X11.
+		     * Tk already documents canvas stipple offsets as silently ignored
+		     * on non-X11, though.
+		     */
+		    CGAffineTransformMakeTranslation(gc->ts_x_origin, -gc->ts_y_origin),
+
+		    p->bounds.size.width, p->bounds.size.height,
+
+		    /*
+		     * Prefer fast tiling:
+		     * Tk drawing is aligned to physical pixels,
+		     * so using other options would likely make no difference
+		     */
+		    kCGPatternTilingConstantSpacing,
+
+		    true, &stippleCallbacks);
+
+	    CGContextSetFillPattern(context, pattern, &alpha);
+	    CGContextSetStrokePattern(context, pattern, &alpha);
+	    CGPatternRelease(pattern);
 	}
 
 	CGColorRelease(cgColor);
