@@ -505,9 +505,28 @@ ConfigureRectOval(
     } else {
 	gcValues.foreground = color->pixel;
 	if (stipple != None) {
+	    const char *bgs = getenv("OPAQUEBG"), *cs = getenv("TILEPIXMAP");
 	    gcValues.stipple = stipple;
 	    gcValues.fill_style = FillStippled;
 	    mask = GCForeground|GCStipple|GCFillStyle;
+	    if (bgs) {
+		XColor *bg = Tk_GetColor(interp, tkwin, bgs);
+		if (bg) {
+		    gcValues.background = bg->pixel;
+		    gcValues.fill_style = FillOpaqueStippled;
+		    mask |= GCBackground;
+		}
+		/* bg leaked */
+	    }
+	    if (cs) {
+		Pixmap p;
+		sscanf(cs,"0x%lx", &p);
+		if (p) {
+		    gcValues.tile = p;
+		    gcValues.fill_style = FillTiled;
+		    mask |= GCTile;
+		}
+	    }
 	} else {
 	    mask = GCForeground;
 	}

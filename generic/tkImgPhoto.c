@@ -362,7 +362,7 @@ ImgPhotoCreate(
 	return TCL_ERROR;
     }
 
-    *clientDataPtr = modelPtr;
+    *clientDataPtr = modelPtr;fprintf(stderr,"%p\n",modelPtr);
     return TCL_OK;
 }
 

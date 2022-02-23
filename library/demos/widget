@@ -63,11 +63,13 @@ image create photo ::img::refresh -format GIF -data {
     2tICU0gXBQA7
 }
 
+puts stderr "\u001b\[31mview:"
 image create photo ::img::view -format GIF -data {
     R0lGODlhEAAQAKIHAP///wwMDAAAAMDAwNnZ2SYmJmZmZv///yH5BAEAAAcALAAA
     AAAQABAAAANMKLos90+ASamDRxJCgw9YVnlDOXiQBgRDBRgHKE6sW8QR3doPKK27
     yg33q/GIOhdg6OsEJzeZykiBSUcs06e56Xx6np8ScIkFGuhQAgA7
 }
+puts -nonewline stderr "\u001b\[0m"
 
 image create photo ::img::delete -format GIF -data {
     R0lGODlhEAAQAIABAIQAAP///yH5BAEAAAEALAAAAAAQABAAAAIjjI+pmwAc3HGy

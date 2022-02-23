@@ -17,8 +17,10 @@ wm iconname $w "Items"
 positionWindow $w
 set c $w.frame.c
 
+if 0 {
 label $w.msg -font $font -wraplength 5i -justify left -text "This window contains a canvas widget with examples of the various kinds of items supported by canvases.  The following operations are supported:\n  Left-Button drag:\tmoves item under pointer.\n  Middle-Button drag:\trepositions view.\n  Right-Button drag:\tstrokes out area.\n  Ctrl+f:\t\tprints items under area."
 pack $w.msg -side top
+}
 
 ## See Code / Dismiss buttons
 set btns [addSeeDismiss $w.buttons $w]
@@ -28,7 +30,7 @@ frame $w.frame
 pack $w.frame -side top -fill both -expand yes
 
 canvas $c -scrollregion {0c 0c 30c 24c} -width 15c -height 10c \
-	-relief sunken -borderwidth 2 \
+	-relief sunken -borderwidth 0 \
 	-xscrollcommand "$w.frame.hscroll set" \
 	-yscrollcommand "$w.frame.vscroll set"
 ttk::scrollbar $w.frame.vscroll -command "$c yview"
@@ -45,7 +47,7 @@ grid columnconfig $w.frame 0 -weight 1 -minsize 0
 
 # Display a 3x3 rectangular grid.
 
-$c create rect 0c 0c 30c 24c -width 2
+$c create rect 0c 0c 30c 24c -width 2 -outline green
 $c create line 0c 8c 30c 8c -width 2
 $c create line 0c 16c 30c 16c -width 2
 $c create line 10c 0c 10c 24c -width 2
@@ -106,8 +108,8 @@ $c create polygon 22c 4.5c 25c 4.5c 25c 6.75c 28c 6.75c \
 $c create text 5c 8.2c -text Rectangles -anchor n
 $c create rectangle 1c 9.5c 4c 12.5c -outline $red -width 3m -tags item
 $c create rectangle 0.5c 13.5c 4.5c 15.5c -fill $green -tags item
-$c create rectangle 6c 10c 9c 15c -outline {} \
-	-stipple @[file join $tk_demoDirectory images gray25.xbm] \
+$c create rectangle 0c 0c 3c 5c -outline {} \
+	-stipple @[file join $tk_demoDirectory images nwse.xbm] \
 	-fill $blue -tags item
 
 $c create text 15c 8.2c -text Ovals -anchor n
@@ -152,7 +154,7 @@ $c create image 13c 20c -tags item -image items.ousterhout \
     -activeimage items.ousterhout.active
 }
 $c create bitmap 17c 18.5c -tags item \
-	-bitmap @[file join $tk_demoDirectory images noletter.xbm]
+	-bitmap @[file join $tk_demoDirectory images nwse.xbm]
 $c create bitmap 17c 21.5c -tags item \
 	-bitmap @[file join $tk_demoDirectory images letters.xbm]
 
@@ -168,6 +170,7 @@ $c create window 28.5c 17.5c -window $c.scale -anchor n -tags item
 $c create text 21c 17.9c -text Button: -anchor sw
 $c create text 21c 20.9c -text Entry: -anchor sw
 $c create text 28.5c 17.4c -text Scale: -anchor s
+$c create rectangle 0 0 0 0 -fill red -outline red
 
 # Set up event bindings for canvas:
 

@@ -790,7 +790,7 @@ TkImgPhotoInstanceSetSize(
 		instancePtr->visualInfo.depth);
 	if (!newPixmap) {
 	    Tcl_Panic("Fail to create pixmap with Tk_GetPixmap in TkImgPhotoInstanceSetSize");
-	}
+	} fprintf(stderr,"%p %p\n",modelPtr,newPixmap);
 
 	/*
 	 * The following is a gross hack needed to properly support colormaps
