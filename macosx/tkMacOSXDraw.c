@@ -1277,6 +1277,8 @@ TkMacOSXSetupDrawingContext(
 	dc.view = view;
 #if TK_MAC_CGIMAGE_DRAWING
 	dc.context = view.tkLayerBitmapContext;
+#elif TK_MAC_CGLAYER_DRAWING
+	dc.context = CGLayerGetContext(view.tkCGLayer);
 #else
 	dc.context = GET_CGCONTEXT;
 #endif

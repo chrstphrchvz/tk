@@ -380,6 +380,8 @@ TkMacOSXDrawAllViews(
 		}
 #if TK_MAC_CGIMAGE_DRAWING
 		// Layer-backed view: let NSView schedule updates
+#elif TK_MAC_CGLAYER_DRAWING
+		// Let ordinary NSView schedule updates
 #else
 		[[view layer] setNeedsDisplayInRect:[view tkDirtyRect]];
 #endif
@@ -407,7 +409,7 @@ TkMacOSXDrawAllViews(
 	     */
 
 	    if ([view needsDisplay]) {
-#if TK_MAC_CGIMAGE_DRAWING
+#if TK_MAC_CGIMAGE_DRAWING || TK_MAC_CGLAYER_DRAWING
 		// Should no longer ever need to setNeedsDisplay:NO
 		fprintf(stderr, "nD still set %p\n", view);
 #else

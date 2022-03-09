@@ -173,16 +173,18 @@ MODULE_SCOPE TkMacOSXEmbedHandler *tkMacOSXEmbedHandler;
 
 /*
 * Experimental CGBitmapContext → CGImage → layer-backed NSView drawing
+* or CGLayer → NSView drawing
 * (FIXME: should this go somewhere else?)
 */
-#define TK_MAC_CGIMAGE_DRAWING	1
+#define TK_MAC_CGIMAGE_DRAWING	0
+#define TK_MAC_CGLAYER_DRAWING	1
 
 /*
  * Using an approach to allow Tk drawing routines to draw "synchronously"
  * (rather than only when in drawRect:--although actually displaying results
  * of drawing may still be done asynchronously)
  */
-#if TK_MAC_CGIMAGE_DRAWING
+#if TK_MAC_CGIMAGE_DRAWING || TK_MAC_CGLAYER_DRAWING
 #define TK_MAC_SYNCHRONOUS_DRAWING	1
 #endif
 

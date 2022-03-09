@@ -669,6 +669,9 @@ CreateCGImageFromDrawableRect(
 #if TK_MAC_CGIMAGE_DRAWING
 	cg_context = ((TKContentView *)view).tkLayerBitmapContext;
 	CGContextRetain(cg_context);
+#elif TK_MAC_CGLAYER_DRAWING
+	cg_context = CGLayerGetContext(((TKContentView *)view).tkCGLayer);
+	CGContextRetain(cg_context);
 #else
 	NSSize size = view.frame.size;
 	NSUInteger view_width = size.width, view_height = size.height;

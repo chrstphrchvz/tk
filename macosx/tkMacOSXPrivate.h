@@ -434,6 +434,8 @@ VISIBILITY_HIDDEN
 @property NSRect tkDirtyRect;
 #if TK_MAC_CGIMAGE_DRAWING
 @property CGContextRef tkLayerBitmapContext;
+#elif TK_MAC_CGLAYER_DRAWING
+@property CGLayerRef tkCGLayer;
 #endif
 @end
 

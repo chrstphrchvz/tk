@@ -966,6 +966,9 @@ ConfigureRestrictProc(
 
 @implementation TKContentView(TKWindowEvent)
 
+#if TK_MAC_CGLAYER_DRAWING
+// want plain old NSView
+#else
 - (id)initWithFrame:(NSRect)frame
 {
     self = [super initWithFrame:frame];
@@ -1007,6 +1010,7 @@ ConfigureRestrictProc(
     }
     return self;
 }
+#endif
 
 #if TK_MAC_CGIMAGE_DRAWING
 - (BOOL) wantsUpdateLayer
@@ -1056,6 +1060,8 @@ ConfigureRestrictProc(
     [self setNeedsDisplay:YES];
 #if TK_MAC_CGIMAGE_DRAWING
     // Layer-backed: want the NSView to control when to draw
+#elif TK_MAC_CGLAYER_DRAWING
+    // Want ordinary NSView to control when to draw
 #else
     [[self layer] setNeedsDisplay];
 #endif
@@ -1073,6 +1079,12 @@ ConfigureRestrictProc(
 #else
 - (void) drawRect: (NSRect) rect
 {
+#if TK_MAC_CGLAYER_DRAWING
+    if (0) fprintf(stderr, "dR %s\n", NSStringFromRect(rect).UTF8String);
+    // Only have to draw the CGLayer
+    CGContextDrawLayerAtPoint([[NSGraphicsContext currentContext] CGContext],
+	    CGPointZero, self.tkCGLayer);
+#else
     (void)rect;
 
 #ifdef TK_MAC_DEBUG_DRAWING
@@ -1103,6 +1115,7 @@ ConfigureRestrictProc(
 #ifdef TK_MAC_DEBUG_DRAWING
     fprintf(stderr, "drawRect: done.\n");
 #endif
+#endif
 }
 #endif
 
@@ -1122,6 +1135,32 @@ ConfigureRestrictProc(
     CGContextRelease(self.tkLayerBitmapContext); // will also need this in a destructor somewhere
     self.tkLayerBitmapContext = newCtx;
     CGColorSpaceRelease(colorspace);
+#elif TK_MAC_CGLAYER_DRAWING
+#if 0 // wrong CGContextType (kCGContextTypeGeneric rather kCGContextTypeBitmap than needed by CGBitmapContextCreateImage())
+    NSGraphicsContext *windowCtx = [NSGraphicsContext graphicsContextWithWindow:self.window];
+    CGLayerRef newCGLayer = CGLayerCreateWithContext(windowCtx.graphicsPort,
+	    CGSizeMake(self.layer.contentsScale * newsize.width,
+		    self.layer.contentsScale * newsize.height),
+	    NULL);
+    [windowCtx release];
+#else
+    CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef newCtx = CGBitmapContextCreate(
+	    NULL, 1, 1, 8, 0, colorspace,
+	    kCGBitmapByteOrder32Big | kCGImageAlphaNoneSkipLast // will also need to specify this when capturing
+    );
+    CGColorSpaceRelease(colorspace);
+    CGLayerRef newCGLayer = CGLayerCreateWithContext(newCtx,
+	    CGSizeMake(self.layer.contentsScale * newsize.width,
+		    self.layer.contentsScale * newsize.height),
+	    NULL);
+    CGContextRelease(newCtx);
+#endif
+    if (0) fprintf(stderr, "setFrameSize %.1f %s %p %ld\n", (float)self.layer.contentsScale,
+	    NSStringFromSize(newsize).UTF8String, newCGLayer, self.tkCGLayer ? (long)CFGetRetainCount(self.tkCGLayer) : INT_MIN);
+    if (0) fprintf(stderr, "sFS %p %ld\n", self.tkCGLayer, (long)(self.tkCGLayer ? CFGetRetainCount(self.tkCGLayer) : LONG_MIN));
+    CGLayerRelease(self.tkCGLayer); // will also need this in a destructor somewhere
+    self.tkCGLayer = newCGLayer;
 #endif
     NSWindow *w = [self window];
     TkWindow *winPtr = TkMacOSXGetTkWindow(w);
