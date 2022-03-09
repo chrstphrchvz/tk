@@ -396,10 +396,6 @@ TkMacOSXDrawAllViews(
 		       untilDate:[NSDate distantPast]
 			  inMode:GetRunLoopMode(TkMacOSXGetModalSession())
 			 dequeue:NO];
-#if TK_MAC_CGIMAGE_DRAWING
-    // Should no longer ever need to setNeedsDisplay:NO
-    // TODO: warn if it is ever still YES here?
-#else
     for (NSWindow *window in [NSApp windows]) {
 	if ([[window contentView] isMemberOfClass:[TKContentView class]]) {
 	    TKContentView *view = [window contentView];
@@ -411,11 +407,15 @@ TkMacOSXDrawAllViews(
 	     */
 
 	    if ([view needsDisplay]) {
+#if TK_MAC_CGIMAGE_DRAWING
+		// Should no longer ever need to setNeedsDisplay:NO
+		fprintf(stderr, "nD still set %p\n", view);
+#else
 		[view setNeedsDisplay: NO];
+#endif
 	    }
 	}
     }
-#endif
     [NSApp setNeedsToDraw:NO];
 }
 
