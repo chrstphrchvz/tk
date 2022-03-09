@@ -1108,7 +1108,7 @@ XMaxRequestSize(
 int
 TkScrollWindow(
     Tk_Window tkwin,		/* The window to be scrolled. */
-#if TK_MAC_CGIMAGE_DRAWING
+#if TK_MAC_SYNCHRONOUS_DRAWING
     GC gc,			/* GC for window to be scrolled. */
 #else
     TCL_UNUSED(GC),			/* GC for window to be scrolled. */
@@ -1126,7 +1126,7 @@ TkScrollWindow(
     NSRect bounds, viewSrcRect, srcRect, dstRect;
     int result = 0;
 
-#if TK_MAC_CGIMAGE_DRAWING
+#if TK_MAC_SYNCHRONOUS_DRAWING
     // Should behave more like TkScrollWindow on other platforms
     if (XCopyArea(Tk_Display(tkwin), drawable, drawable, gc, x, y,
 	    (unsigned)width, (unsigned)height, x+dx, y+dy) == Success) {
@@ -1143,7 +1143,7 @@ TkScrollWindow(
 		bounds.size.height - height - (macDraw->yOff + y),
 		width, height);
 
-#if TK_MAC_CGIMAGE_DRAWING
+#if TK_MAC_SYNCHRONOUS_DRAWING
 	    // Already scrolled using XCopyArea()
 #else
 	/*
@@ -1291,7 +1291,7 @@ TkMacOSXSetupDrawingContext(
 	    drawingBounds = [view bounds];
 	}
 
-#if TK_MAC_CGIMAGE_DRAWING
+#if TK_MAC_SYNCHRONOUS_DRAWING
 	[view addTkDirtyRect:drawingBounds];
 	// TODO: handle retina scaling (here, or somewhere else--e.g. context creation?)
 #else
@@ -1467,7 +1467,7 @@ end:
 	dc.clipRgn = NULL;
     }
     *dcPtr = dc;
-#if TK_MAC_CGIMAGE_DRAWING
+#if TK_MAC_SYNCHRONOUS_DRAWING
     // The goal is to allow immediate drawing; canDraw == 0 should happen far less often.
     if (0) fprintf(stderr, "tkmacosxsdc canDraw %d\n", canDraw);
 #endif
