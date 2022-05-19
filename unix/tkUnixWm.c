@@ -6950,6 +6950,7 @@ TkpMakeMenuWindow(
 	}
     }
     SetNetWmType((TkWindow *)tkwin, typeObj);
+    Tcl_DecrRefCount(typeObj);
 
     /*
      * The override-redirect and save-under bits must be set on the wrapper
