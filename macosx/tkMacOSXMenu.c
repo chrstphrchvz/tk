@@ -951,8 +951,6 @@ TkpPostMenu(
 	}
 	realWin = Tk_Parent(realWin);
     }
-    NSWindow *win = [realWinView window];
-    NSView *view = [win contentView];
     NSMenu *menu = (NSMenu *) menuPtr->platformData;
     NSInteger itemIndex = index;
     NSInteger numItems = [menu numberOfItems];
@@ -982,8 +980,9 @@ TkpPostMenu(
     }
 
     [menu popUpMenuPositioningItem:item
-			atLocation:[win tkConvertPointFromScreen:location]
-			    inView:view];
+			atLocation:location
+			    inView:nil
+			appearance:realWinView.effectiveAppearance];
     inPostMenu = false;
     return TCL_OK;
 }
