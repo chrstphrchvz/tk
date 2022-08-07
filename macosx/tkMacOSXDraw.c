@@ -1295,7 +1295,6 @@ TkMacOSXSetupDrawingContext(
 
 #if TK_MAC_SYNCHRONOUS_DRAWING
 	[view addTkDirtyRect:drawingBounds];
-	// TODO: handle retina scaling (here, or somewhere else--e.g. context creation?)
 #else
 	/*
 	 * We can only draw into the NSView which is the current focusView.

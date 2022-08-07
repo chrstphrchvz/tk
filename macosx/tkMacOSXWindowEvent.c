@@ -1118,6 +1118,7 @@ ConfigureRestrictProc(
 	    self.layer.contentsScale * newsize.height, 8, 0, colorspace,
 	    kCGBitmapByteOrder32Big | kCGImageAlphaNoneSkipLast // will also need to specify this when capturing
     );
+    CGContextScaleCTM(newCtx, self.layer.contentsScale, self.layer.contentsScale);
     if (0) fprintf(stderr, "setFrameSize %.1f %s %p %p %ld\n", (float)self.layer.contentsScale,
 	    NSStringFromSize(newsize).UTF8String, colorspace, newCtx, self.tkLayerBitmapContext ? (long)CFGetRetainCount(self.tkLayerBitmapContext) : INT_MIN);
     if (0) fprintf(stderr, "sFS %p %ld\n", self.tkLayerBitmapContext, (long)(self.tkLayerBitmapContext ? CFGetRetainCount(self.tkLayerBitmapContext) : LONG_MIN));
