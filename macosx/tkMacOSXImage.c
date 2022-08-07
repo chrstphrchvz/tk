@@ -708,6 +708,9 @@ CreateCGImageFromDrawableRect(
     if (cg_image) {
 	CGRect rect = CGRectMake(x + mac_drawable->xOff, y + mac_drawable->yOff,
 				 width, height);
+#if TK_MAC_SYNCHRONOUS_DRAWING
+	rect = CGRectApplyAffineTransform(rect, CGAffineTransformMakeScale(scaleFactor, scaleFactor));
+#endif
 	result = CGImageCreateWithImageInRect(cg_image, rect);
 	CGImageRelease(cg_image);
 #if TK_MAC_SYNCHRONOUS_DRAWING
