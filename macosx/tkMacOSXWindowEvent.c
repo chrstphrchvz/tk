@@ -1112,19 +1112,7 @@ ConfigureRestrictProc(
 {
     [super setFrameSize: newsize];
 #if TK_MAC_CGIMAGE_DRAWING
-    CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
-    CGContextRef newCtx = CGBitmapContextCreate(
-	    NULL, self.layer.contentsScale * newsize.width,
-	    self.layer.contentsScale * newsize.height, 8, 0, colorspace,
-	    kCGBitmapByteOrder32Big | kCGImageAlphaNoneSkipLast // will also need to specify this when capturing
-    );
-    CGContextScaleCTM(newCtx, self.layer.contentsScale, self.layer.contentsScale);
-    if (0) fprintf(stderr, "setFrameSize %.1f %s %p %p %ld\n", (float)self.layer.contentsScale,
-	    NSStringFromSize(newsize).UTF8String, colorspace, newCtx, self.tkLayerBitmapContext ? (long)CFGetRetainCount(self.tkLayerBitmapContext) : INT_MIN);
-    if (0) fprintf(stderr, "sFS %p %ld\n", self.tkLayerBitmapContext, (long)(self.tkLayerBitmapContext ? CFGetRetainCount(self.tkLayerBitmapContext) : LONG_MIN));
-    CGContextRelease(self.tkLayerBitmapContext); // will also need this in a destructor somewhere
-    self.tkLayerBitmapContext = newCtx;
-    CGColorSpaceRelease(colorspace);
+    [self resetTkLayerBitmapContext];
 #endif
     NSWindow *w = [self window];
     TkWindow *winPtr = TkMacOSXGetTkWindow(w);
@@ -1419,6 +1407,24 @@ static const char *const accentNames[] = {
     }
     return [super validRequestorForSendType:sendType returnType:returnType];
 }
+
+#if TK_MAC_CGIMAGE_DRAWING
+-(void) resetTkLayerBitmapContext {
+    CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef newCtx = CGBitmapContextCreate(
+	    NULL, self.layer.contentsScale * self.frame.size.width,
+	    self.layer.contentsScale * self.frame.size.height, 8, 0, colorspace,
+	    kCGBitmapByteOrder32Big | kCGImageAlphaNoneSkipLast // will also need to specify this when capturing
+    );
+    CGContextScaleCTM(newCtx, self.layer.contentsScale, self.layer.contentsScale);
+    if (0) fprintf(stderr, "rTkLBC %.1f %s %p %p %ld\n", (float)self.layer.contentsScale,
+	    NSStringFromSize(self.frame.size).UTF8String, colorspace, newCtx, self.tkLayerBitmapContext ? (long)CFGetRetainCount(self.tkLayerBitmapContext) : INT_MIN);
+    if (0) fprintf(stderr, "rTkLBC %p %ld\n", self.tkLayerBitmapContext, (long)(self.tkLayerBitmapContext ? CFGetRetainCount(self.tkLayerBitmapContext) : LONG_MIN));
+    CGContextRelease(self.tkLayerBitmapContext); // will also need this in a destructor somewhere
+    self.tkLayerBitmapContext = newCtx;
+    CGColorSpaceRelease(colorspace);
+}
+#endif
 
 @end
 
