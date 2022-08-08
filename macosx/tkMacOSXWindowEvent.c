@@ -1048,6 +1048,11 @@ ConfigureRestrictProc(
      */
 
     self.layer.contentsScale = self.window.screen.backingScaleFactor;
+#if TK_MAC_CGIMAGE_DRAWING
+    [self resetTkLayerBitmapContext];
+    // need to redraw
+    [self generateExposeEvents: [self bounds]];
+#endif
 }
 
 - (void) addTkDirtyRect: (NSRect) rect
