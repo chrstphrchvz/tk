@@ -441,6 +441,9 @@ VISIBILITY_HIDDEN
 - (void) clearTkDirtyRect;
 - (void) generateExposeEvents: (NSRect) rect;
 - (void) tkToolbarButton: (id) sender;
+#if TK_MAC_CGIMAGE_DRAWING
+- (void) resetTkLayerBitmapContext;
+#endif
 @end
 
 @interface NSWindow(TKWm)
