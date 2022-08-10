@@ -1415,7 +1415,19 @@ static const char *const accentNames[] = {
 
 #if TK_MAC_CGIMAGE_DRAWING
 -(void) resetTkLayerBitmapContext {
-    CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
+    CGColorSpaceRef colorspace = NULL;
+
+    // Try using display colorspace to avoid performance hit due to colorspace conversion
+    // (allow disabling in case color accuracy is needed)
+    if (!getenv("TK_NODISPLAYCOLORSPACE")) {
+	colorspace = CGDisplayCopyColorSpace(CGMainDisplayID());
+    }
+
+    // fallback (uses sRGB on macOS 10.8 and later)
+    if (!colorspace) {
+	colorspace = CGColorSpaceCreateDeviceRGB();
+    }
+
     CGContextRef newCtx = CGBitmapContextCreate(
 	    NULL, self.layer.contentsScale * self.frame.size.width,
 	    self.layer.contentsScale * self.frame.size.height, 8, 0, colorspace,
