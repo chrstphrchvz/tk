@@ -1212,7 +1212,7 @@ ConfigureRestrictProc(
     updateBounds.origin.y = ([self bounds].size.height - updateBounds.origin.y
 			     - updateBounds.size.height);
     updatesNeeded = GenerateUpdates(&updateBounds, winPtr);
-    if (updatesNeeded) {
+    if (!TK_MAC_SYNCHRONOUS_DRAWING && updatesNeeded) {
 
 	serial = LastKnownRequestProcessed(Tk_Display(winPtr));
 
