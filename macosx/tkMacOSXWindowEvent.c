@@ -479,6 +479,7 @@ static void RefocusGrabWindow(void *data) {
 int
 TkpWillDrawWidget(Tk_Window tkwin) {
     int result;
+    if (TK_MAC_SYNCHRONOUS_DRAWING) return 0; // not in drawRect
     if (tkwin) {
 	TkWindow *winPtr = (TkWindow *)tkwin;
 	TKContentView *view = (TKContentView *)TkMacOSXGetNSViewForDrawable(
