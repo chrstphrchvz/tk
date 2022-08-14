@@ -179,6 +179,7 @@ XMapWindow(
 	    TkMacOSXApplyWindowAttributes(winPtr, win);
 	    [win setExcludedFromWindowsMenu:NO];
 	    [NSApp activateIgnoringOtherApps:initialized];
+	    // Not sure this does anything useful for TK_MAC_SYNCHRONOUS_DRAWING
 	    [view addTkDirtyRect: [view bounds]];
 	    if (initialized) {
 		if ([win canBecomeKeyWindow]) {
@@ -225,9 +226,19 @@ XMapWindow(
      */
 
     TKContentView *view = [win contentView];
+#if TK_MAC_SYNCHRONOUS_DRAWING
+    /*
+     * Do not rely on addTkDirtyRect: to generate Expose events
+     * (though I’m not sure if this is the place to generate events;
+     * or if using generateExposeEvents: is the best way;
+     * what does XMapWindow() do on other platforms?)
+     */
+     [view generateExposeEvents:[view bounds]];
+#else
     if (view != [NSView focusView]) {
 	[view addTkDirtyRect:[view bounds]];
     }
+#endif
 
     /*
      * Generate VisibilityNotify events for window and all mapped children.
@@ -364,10 +375,18 @@ XUnmapWindow(
 	TkMacOSXInvalClipRgns((Tk_Window)parentPtr);
 	TkMacOSXUpdateClipRgn(parentPtr);
     }
+#if TK_MAC_SYNCHRONOUS_DRAWING
+    /*
+     * Anything need to be done here instead?
+     * (Not yet aware of reasoning behind [78a3bdc4454f]
+     * i.e. why the existing approach uses addTkDirtyRect: here)
+     */
+#else
     TKContentView *view = [win contentView];
     if (view != [NSView focusView]) {
 	[view addTkDirtyRect:[view bounds]];
     }
+#endif
     return Success;
 }
 
@@ -1036,7 +1055,12 @@ InvalViewRect(
 	break;
     case kHIShapeEnumerateRect:
 	dirtyRect = NSRectFromCGRect(CGRectApplyAffineTransform(*rect, t));
+#if TK_MAC_SYNCHRONOUS_DRAWING
+	// Cannot rely on addTkDirtyRect: to force redrawing.
+	[view generateExposeEvents:dirtyRect];
+#else
 	[view addTkDirtyRect:dirtyRect];
+#endif
 	break;
     }
     return noErr;

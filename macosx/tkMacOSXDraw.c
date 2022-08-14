@@ -1294,6 +1294,8 @@ TkMacOSXSetupDrawingContext(
 	}
 
 #if TK_MAC_SYNCHRONOUS_DRAWING
+	// It seems this should be the only place to use addTkDirtyRect:
+	// and that it should not be used elsewhere as a proxy to generate Expose events, which will not work.
 	[view addTkDirtyRect:drawingBounds];
 #else
 	/*
