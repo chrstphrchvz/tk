@@ -113,7 +113,7 @@ proc ::tk::dialog::error::bgerror {err {flag 1}} {
     # being processed inside of [NSView drawRect].  In that case
     # we post the dialog as an after task instead.
     set windowingsystem [tk windowingsystem]
-    if {$windowingsystem eq "aqua"} {
+    if {0 && $windowingsystem eq "aqua"} {
 	if $flag {
 	    set errorInfo $info
 	    after 500 [list bgerror "$err" 0]
