@@ -1316,6 +1316,7 @@ static const char *const accentNames[] = {
 	     effectiveAppearanceName.UTF8String, accentName,
 	     highlightName);
     TkSendVirtualEvent(tkwin, "AppearanceChanged", Tcl_NewStringObj(data, -1));
+    [self generateExposeEvents:self.bounds];
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath
