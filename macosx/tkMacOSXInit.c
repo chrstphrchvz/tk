@@ -45,8 +45,41 @@ static int		TkMacOSXGetAppPathCmd(ClientData cd, Tcl_Interp *ip,
 @synthesize needsToDraw = _needsToDraw;
 @synthesize tkLiveResizeEnded = _tkLiveResizeEnded;
 @synthesize tkPointerWindow = _tkPointerWindow;
+- (void) setTkPointerWindow: (TkWindow *)win
+{
+    if (_tkPointerWindow) {
+	Tcl_Release(_tkPointerWindow);
+    }
+    if (win) {
+	Tcl_Preserve(win);
+    }
+    _tkPointerWindow = win;
+    return;
+}
 @synthesize tkEventTarget = _tkEventTarget;
+- (void) setTkEventTarget: (TkWindow *)win
+{
+    if (_tkEventTarget) {
+	Tcl_Release(_tkEventTarget);
+    }
+    if (win) {
+	Tcl_Preserve(win);
+    }
+    _tkEventTarget = win;
+    return;
+}
 @synthesize tkDragTarget = _tkDragTarget;
+- (void) setTkDragTarget: (TkWindow *)win
+{
+    if (_tkDragTarget) {
+	Tcl_Release(_tkDragTarget);
+    }
+    if (win) {
+	Tcl_Preserve(win);
+    }
+    _tkDragTarget = win;
+    return;
+}
 @synthesize tkButtonState = _tkButtonState;
 @end
 
