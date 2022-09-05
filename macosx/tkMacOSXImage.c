@@ -48,7 +48,8 @@ static CGImageRef CreateCGImageFromDrawableRect( Drawable drawable,
  * blue_mask = 0xFF. This means that a 32bpp ZPixmap XImage uses ARGB32 pixels,
  * with small-endian byte order BGRA. The data array for such an XImage can be
  * passed directly to construct a CGBitmapImageRep if one specifies the
- * bitmapInfo as kCGBitmapByteOrder32Big | kCGImageAlphaLast.
+ * bitmapInfo as kCGBitmapByteOrder32Big | kCGImageAlphaFirst for LSBFirst byte order,
+ * otherwise kCGBitmapByteOrder32Big | kCGImageAlphaFirst for MSBFirst byte order.
  *
  * The structures below describe the bitfields in two common 32 bpp pixel
  * layouts.  Note that bit field layouts are compiler dependent. The layouts
@@ -58,8 +59,7 @@ static CGImageRef CreateCGImageFromDrawableRect( Drawable drawable,
  */
 
 /* RGBA32 0xRRGGBBAA (Byte order is RGBA on big-endian systems.)
- * This is used by NSBitmapImageRep when the bitmapFormat property is 0,
- * the default value.
+ * This is used by NSBitmapImageRep when (bitmapFormat & NSAlphaFirstBitmapFormat) is 0.
  */
 
 typedef struct RGBA32pixel_t {
@@ -70,22 +70,34 @@ typedef struct RGBA32pixel_t {
 } RGBA32pixel;
 
 /*
- * ARGB32 0xAARRGGBB (Byte order is ARGB on big-endian systems.)
- * This is used by Aqua Tk for XImages and by NSBitmapImageReps whose
- * bitmapFormat property is NSAlphaFirstBitmapFormat.
+ * BGRA32 0xBBGGRRAA (Byte order is BGRA on big-endian systems.)
+ * This is used by Tk XImage, X pixel values (because of what is set in masks and byte order, right?)
  */
 
-typedef struct ARGB32pixel_t {
+typedef struct BGRA32pixel_t {
     unsigned blue: 8;
     unsigned green: 8;
     unsigned red: 8;
     unsigned alpha: 8;
+} BGRA32pixel;
+
+/*
+ * ARGB32 0xAARRGGBB (Byte order is ARGB on big-endian systems.)
+ * This is used by NSBitmapImageRep when (bitmapFormat & NSAlphaFirstBitmapFormat) is NSAlphaFirstBitmapFormat.
+ */
+
+typedef struct ARGB32pixel_t {
+    unsigned alpha: 8;
+    unsigned red: 8;
+    unsigned green: 8;
+    unsigned blue: 8;
 } ARGB32pixel;
 
 typedef union pixel32_t {
     unsigned int uint;
     RGBA32pixel rgba;
     ARGB32pixel argb;
+    BGRA32pixel bgra;
 } pixel32;
 
 #pragma mark XImage handling
@@ -158,7 +170,7 @@ TkMacOSXCreateCGImageWithXImage(
 		    *destPtr++ = xBitReverseTable[(unsigned char)(*(srcPtr++))];
 		}
 	    } else {
-		memcpy(data, image->data + image->xoffset, len);
+		memcpy(data, image->data + image->xoffset, len); // FIXME: out-of-bounds when image->xoffset != 0
 	    }
 	    provider = CGDataProviderCreateWithData(data, data, len,
 		    releaseData);
@@ -187,10 +199,12 @@ TkMacOSXCreateCGImageWithXImage(
 	CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
 	bitsPerComponent = 8;
 	bitsPerPixel = 32;
-	bitmapInfo = kCGBitmapByteOrder32Big | alphaInfo;
+	bitmapInfo = (image->byte_order == LSBFirst)
+		? kCGBitmapByteOrder32Little | alphaInfo // byte order BGRX
+		: kCGBitmapByteOrder32Big | alphaInfo; // byte order XRGB
 	data = (char *)ckalloc(len);
 	if (data) {
-	    memcpy(data, image->data + image->xoffset, len);
+	    memcpy(data, image->data + image->xoffset, len); // FIXME: out-of-bounds if image->xoffset != 0; PutImage.c in libX11 does not use xoffset for ZPixmaps with depth != 1
 	    provider = CGDataProviderCreateWithData(data, data, len,
 		    releaseData);
 	    if (!provider) {
@@ -280,7 +294,7 @@ ImageGetPixel(
 	switch (image->bits_per_pixel) {
 	case 32: /* 8 bits per channel */
 	    {
-		ARGB32pixel *pixel = (ARGB32pixel *)srcPtr;
+		BGRA32pixel *pixel = (BGRA32pixel *)srcPtr; // TODO: do not assume image->byte_order == LSBFirst
 		r = pixel->red;
 		g = pixel->green;
 		b = pixel->blue;
@@ -437,13 +451,8 @@ XCreateImage(
 		(ximage->bitmap_pad - 1)) >> 3) &
 		~((ximage->bitmap_pad >> 3) - 1);
     }
-#ifdef WORDS_BIGENDIAN
-    ximage->byte_order = MSBFirst;
-    ximage->bitmap_bit_order = MSBFirst;
-#else
-    ximage->byte_order = LSBFirst;
+    ximage->byte_order = LSBFirst; // TODO: do not assume elsewhere that LSBFirst is always used
     ximage->bitmap_bit_order = LSBFirst;
-#endif
     ximage->red_mask = 0x00FF0000;
     ximage->green_mask = 0x0000FF00;
     ximage->blue_mask = 0x000000FF;
@@ -486,8 +495,10 @@ XCreateImage(
  *----------------------------------------------------------------------
  */
 
-#define USE_ALPHA kCGImageAlphaLast
-#define IGNORE_ALPHA kCGImageAlphaNoneSkipLast
+#if !TK_MAC_SYNCHRONOUS_DRAWING
+#define USE_ALPHA kCGImageAlphaFirst
+#endif
+#define IGNORE_ALPHA kCGImageAlphaNoneSkipFirst
 
 static int
 TkMacOSXPutImage(
@@ -578,6 +589,7 @@ int TkPutImage(
 		     src_x, src_y, dest_x, dest_y, width, height);
 }
 
+#if !TK_MAC_SYNCHRONOUS_DRAWING
 int TkpPutRGBAImage(
     Display* display,
     Drawable drawable,
@@ -592,6 +604,7 @@ int TkpPutRGBAImage(
     return TkMacOSXPutImage(USE_ALPHA, display, drawable, gc, image,
 		     src_x, src_y, dest_x, dest_y, width, height);
 }
+#endif
 
 
 /*
@@ -812,6 +825,8 @@ XGetImage(
 
     if (format == ZPixmap) {
 	CGImageRef cgImage;
+	CGBitmapInfo bitmap_info;
+	CGImageAlphaInfo alpha_info;
 	if (width == 0 || height == 0) {
 	    return NULL;
 	}
@@ -821,6 +836,8 @@ XGetImage(
 	if (cgImage) {
 	    bitmapRep = [NSBitmapImageRep alloc];
 	    [bitmapRep initWithCGImage:cgImage];
+	    alpha_info = CGImageGetAlphaInfo(cgImage);
+	    bitmap_info = CGImageGetBitmapInfo(cgImage) & ~(kCGBitmapAlphaInfoMask|kCGBitmapFloatInfoMask);
 	    CFRelease(cgImage);
 	} else {
 	    TkMacOSXDbgMsg("XGetImage: Failed to construct CGImage");
@@ -829,8 +846,8 @@ XGetImage(
 	bitmap_fmt = [bitmapRep bitmapFormat];
 	size = [bitmapRep bytesPerPlane];
 	bytes_per_row = [bitmapRep bytesPerRow];
-	if ((bitmap_fmt != 0 && bitmap_fmt != NSAlphaFirstBitmapFormat)
-	    || [bitmapRep samplesPerPixel] != 4
+	int has_alpha = ([bitmapRep samplesPerPixel] == 4);
+	if ( 0
 	    || [bitmapRep isPlanar] != 0
 	    || bytes_per_row < 4 * width
 	    || size != bytes_per_row * height) {
@@ -845,21 +862,33 @@ XGetImage(
 	for (row = 0, n = 0; row < height; row++, n += bytes_per_row) {
 	    for (m = n; m < n + 4*width; m += 4) {
 		pixel32 pixel = *((pixel32 *)(bitmap + m));
-		if (bitmap_fmt == 0) { // default format
+		// Problematic endianness assumptions…note that NSBitmapImageRep says nothing about endianness, need info from CGImage?
+		if (bitmap_fmt & NSAlphaFirstBitmapFormat) {
 
 		    /*
-		     * This pixel is in ARGB32 format.  We need RGBA32.
+		     * This pixel is in XRGB (big endian) format.  We need BGRX (big endian).
 		     */
 
 		    pixel32 flipped;
-		    flipped.rgba.red = pixel.argb.red;
-		    flipped.rgba.green = pixel.argb.green;
-		    flipped.rgba.blue = pixel.argb.blue;
-		    flipped.rgba.alpha = pixel.argb.alpha;
-		    *((pixel32 *)(bitmap + m)) = flipped;
-		} else { // bitmap_fmt = NSAlphaFirstBitmapFormat
-		    *((pixel32 *)(bitmap + m)) = pixel;
+		    flipped.bgra.red = pixel.argb.red;
+		    flipped.bgra.green = pixel.argb.green;
+		    flipped.bgra.blue = pixel.argb.blue;
+		    flipped.bgra.alpha = pixel.argb.alpha;
+		    pixel = flipped;
+		} else {
+		    /*
+		     * This pixel is in RGBX (big endian) format.  We need BGRX (big endian).
+		     */
+
+		    pixel32 flipped;
+		    flipped.bgra.red = pixel.rgba.red;
+		    flipped.bgra.green = pixel.rgba.green;
+		    flipped.bgra.blue = pixel.rgba.blue;
+		    flipped.bgra.alpha = pixel.rgba.alpha;
+		    pixel = flipped;
 		}
+		if (!has_alpha) pixel.bgra.alpha = 255;
+		*((pixel32 *)(bitmap + m)) = pixel;
 	    }
 	}
 	imagePtr = XCreateImage(display, NULL, depth, format, offset,

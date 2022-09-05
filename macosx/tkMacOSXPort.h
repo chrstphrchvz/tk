@@ -177,7 +177,9 @@
  * images directly into a window.
  */
 
+#if 0 // TK_MAC_SYNCHRONOUS_DRAWING macro not available here
 #define TK_CAN_RENDER_RGBA
+#endif
 
 MODULE_SCOPE int TkpPutRGBAImage(
 		     Display* display, Drawable drawable, GC gc,XImage* image,
