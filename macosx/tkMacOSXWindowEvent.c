@@ -265,7 +265,22 @@ extern NSString *NSWindowDidOrderOffScreenNotification;
     NSString *name = [notification name];
     if ([name isEqualToString:NSWindowWillStartLiveResizeNotification]) {
 	// printf("Starting live resize.\n");
+
+	// Copied from TKApplication menuBeginTracking:
+	if (self.backgroundLoop) {
+	    [self.backgroundLoop cancel];
+	    [self.backgroundLoop release];
+	}
+	self.backgroundLoop = [[TKBackgroundLoop alloc] init];
+	[self.backgroundLoop start];
     } else if ([name isEqualToString:NSWindowDidEndLiveResizeNotification]) {
+	// Copied from TKApplication menuEndTracking:
+	if (self.backgroundLoop) {
+	    [self.backgroundLoop cancel];
+	    [self.backgroundLoop release];
+	    self.backgroundLoop = nil;
+	}
+
 	[self setTkLiveResizeEnded:YES];
 	// printf("Ending live resize\n");
     }
@@ -1212,8 +1227,8 @@ ConfigureRestrictProc(
     updateBounds.origin.y = ([self bounds].size.height - updateBounds.origin.y
 			     - updateBounds.size.height);
     updatesNeeded = GenerateUpdates(&updateBounds, winPtr);
-    //if (!TK_MAC_SYNCHRONOUS_DRAWING && updatesNeeded) {
-    if ([self inLiveResize] && updatesNeeded) {
+    if (!TK_MAC_SYNCHRONOUS_DRAWING && updatesNeeded) {
+    //if ([self inLiveResize] && updatesNeeded) {
 
 	serial = LastKnownRequestProcessed(Tk_Display(winPtr));
 
