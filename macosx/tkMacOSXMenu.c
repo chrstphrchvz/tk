@@ -132,9 +132,6 @@ static int	ModifierCharWidth(Tk_Font tkfont);
  * menuEndTracking].
  */
 
-@interface TKBackgroundLoop: NSThread
-@end
-
 @implementation TKBackgroundLoop
 - (void) main
 {
@@ -164,9 +161,6 @@ static int	ModifierCharWidth(Tk_Font tkfont);
     [pool drain];
 }
 @end
-
-TKBackgroundLoop *backgroundLoop = nil;
-
 
 #pragma mark TKMenu
 
@@ -503,12 +497,12 @@ static Bool runMenuCommand = true;
 #ifdef TK_MAC_DEBUG_NOTIFICATIONS
     TKLog(@"-[%@(%p) %s] %@", [self class], self, _cmd, notification);
 #endif
-    if (backgroundLoop) {
-	[backgroundLoop cancel];
-	[backgroundLoop release];
+    if (self.backgroundLoop) {
+	[self.backgroundLoop cancel];
+	[self.backgroundLoop release];
     }
-    backgroundLoop = [[TKBackgroundLoop alloc] init];
-    [backgroundLoop start];
+    self.backgroundLoop = [[TKBackgroundLoop alloc] init];
+    [self.backgroundLoop start];
 
     /*
      * Make sure that we can run commands when actually using a menu.
@@ -524,10 +518,10 @@ static Bool runMenuCommand = true;
 #ifdef TK_MAC_DEBUG_NOTIFICATIONS
     TKLog(@"-[%@(%p) %s] %@", [self class], self, _cmd, notification);
 #endif
-    if (backgroundLoop) {
-	[backgroundLoop cancel];
-	[backgroundLoop release];
-	backgroundLoop = nil;
+    if (self.backgroundLoop) {
+	[self.backgroundLoop cancel];
+	[self.backgroundLoop release];
+	self.backgroundLoop = nil;
     }
     if (!inPostMenu) {
 	TkMacOSXClearMenubarActive();
