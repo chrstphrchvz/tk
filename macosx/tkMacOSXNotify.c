@@ -214,8 +214,8 @@ void DebugPrintQueue(void)
 
 - (void) _runBackgroundLoop
 {
-    while(Tcl_DoOneEvent(TCL_IDLE_EVENTS|TCL_TIMER_EVENTS|TCL_DONT_WAIT)){
-	TkMacOSXDrawAllViews(NULL);
+    while(Tcl_DoOneEvent(TCL_DONT_WAIT)){
+	//TkMacOSXDrawAllViews(NULL);
     }
 }
 @end
