@@ -306,6 +306,11 @@ VISIBILITY_HIDDEN
 @interface TKMenu(TKMenuDelegate) <NSMenuDelegate>
 @end
 
+// Is this in the right place? Should it be VISIBILITY_HIDDEN?
+VISIBILITY_HIDDEN
+@interface TKBackgroundLoop: NSThread
+@end
+
 VISIBILITY_HIDDEN
 @interface TKApplication : NSApplication {
 @private
@@ -316,7 +321,6 @@ VISIBILITY_HIDDEN
     NSArray *_defaultApplicationMenuItems, *_defaultWindowsMenuItems;
     NSArray *_defaultHelpMenuItems, *_defaultFileMenuItems;
     NSAutoreleasePool *_mainPool;
-    NSThread *_backgoundLoop;
 
 #ifdef __i386__
     /* The Objective C runtime used on i386 requires this. */
@@ -337,6 +341,7 @@ VISIBILITY_HIDDEN
 @property Bool isDrawing;
 @property Bool needsToDraw;
 @property Bool tkLiveResizeEnded;
+@property(strong) NSThread *backgroundLoop; // is strong the correct choice?
 
 /*
  * Persistent state variables used by processMouseEvent.
