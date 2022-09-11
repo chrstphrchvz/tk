@@ -610,6 +610,21 @@ DrawPatternCallback(
  *----------------------------------------------------------------------
  */
 
+// Undocumented
+typedef enum {
+    kCGContextTypeUnknown,
+    kCGContextTypePDF,
+    kCGContextTypePostScript,
+    kCGContextTypeWindow,
+    kCGContextTypeBitmap,
+    kCGContextTypeGL,
+    kCGContextTypeDisplayList,
+    kCGContextTypeKSeparation,
+    kCGContextTypeIOSurface,
+    kCGContextTypeCount
+} CGContextType;
+extern CGContextType CGContextGetType(CGContextRef);
+
 void
 TkMacOSXSetColorInContext(
     GC gc,
@@ -711,17 +726,19 @@ TkMacOSXSetColorInContext(
 		    .drawPattern = DrawPatternCallback,
 		    .releaseInfo = ReleaseInfoCallback
 	    };
-	    if (0) fprintf(stderr, "%+d,%+d\n", gc->ts_x_origin, gc->ts_y_origin);
+	    NSString *s = [[NSString alloc] initWithFormat:@"%@", context];
+	    if (0) fprintf(stderr, "\e[36m%+d,%+d %zu %d %s\e[0m\n", gc->ts_x_origin, gc->ts_y_origin,
+		    CGBitmapContextGetHeight(context), CGContextGetType(context), s.UTF8String);
+	    [s release];
 	    CGPatternRef pattern = CGPatternCreate(p, p->bounds,
 
 		    /*
-		     * The exact origin of the pattern does not match X11.
-		     * Currently, resizing a toplevel horizontally also shifts the
-		     * pattern in the same direction, which does not happen on X11.
-		     * Tk already documents canvas stipple offsets as silently ignored
-		     * on non-X11, though.
+		     * Needed for the origin of the pattern to match X11,
+		     * even though Tk already documents canvas stipple offsets
+		     * as silently ignored on non-X11.
 		     */
-		    CGAffineTransformMakeTranslation(gc->ts_x_origin, -gc->ts_y_origin),
+		    CGAffineTransformMakeTranslation(gc->ts_x_origin,
+			    CGBitmapContextGetHeight(context) - gc->ts_y_origin),
 
 		    p->bounds.size.width, p->bounds.size.height,
 

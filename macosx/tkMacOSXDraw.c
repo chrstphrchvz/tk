@@ -1418,10 +1418,6 @@ TkMacOSXSetupDrawingContext(
 	double w = gc->line_width;
 
 	TkMacOSXSetColorInContext(gc, gc->foreground, dc.context); // would also like to set stipple/tile here
-	if (view) {
-	    CGSize size = NSSizeToCGSize([view bounds].size);
-	    CGContextSetPatternPhase(dc.context, size);
-	}
 	if (gc->function != GXcopy) {
 	    TkMacOSXDbgMsg("Logical functions other than GXcopy are "
 			   "not supported for CG drawing!");
