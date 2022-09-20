@@ -318,10 +318,14 @@ TkMacOSXDrawCGImage(
 		CGContextSetRGBFillColor(context, 0.0, 0.0, 0.0, 1.0);
 	    } else {
 		if (imageBackground != transparentColor) {
-		    TkMacOSXSetColorInContext(gc, imageBackground, context);
+		    TkMacOSXSetColorInContext(gc, imageBackground, 
+		    TkMacOSXGetNSViewForDrawable(d).effectiveAppearance,
+		    context);
 		    CGContextFillRect(context, dstBounds);
 		}
-		TkMacOSXSetColorInContext(gc, imageForeground, context);
+		TkMacOSXSetColorInContext(gc, imageForeground,
+			TkMacOSXGetNSViewForDrawable(d).effectiveAppearance,
+			context);
 	    }
 	}
 
@@ -1396,7 +1400,7 @@ TkMacOSXSetupDrawingContext(
 	    CGContextClipToRect(dc.context, r);
 	}
     }
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
+#if 0 && MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
     if (@available(macOS 10.14, *)) {
 	dc.savedAppearance = NSAppearance.currentAppearance;
 	if (view) {
@@ -1419,7 +1423,8 @@ TkMacOSXSetupDrawingContext(
 	bool shouldAntialias = !notAA(gc->line_width);
 	double w = gc->line_width;
 
-	TkMacOSXSetColorInContext(gc, gc->foreground, dc.context);
+	TkMacOSXSetColorInContext(gc, gc->foreground,
+		view.effectiveAppearance, dc.context);
 	if (view) {
 	    CGSize size = NSSizeToCGSize([view bounds].size);
 	    CGContextSetPatternPhase(dc.context, size);
@@ -1513,7 +1518,7 @@ TkMacOSXRestoreDrawingContext(
 	CFRelease(dcPtr->clipRgn);
 	dcPtr->clipRgn = NULL;
     }
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
+#if 0 && MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
     if (@available(macOS 10.14, *)) {
 	NSAppearance.currentAppearance = dcPtr->savedAppearance;
     }

@@ -1053,7 +1053,9 @@ XCopyPlane(
 		     */
 
 		    CGContextClipToMask(context, rect, submask);
-		    TkMacOSXSetColorInContext(gc, gc->background, dc.context);
+		    TkMacOSXSetColorInContext(gc, gc->background,
+			    TkMacOSXGetNSViewForDrawable(dst).effectiveAppearance,
+			    dc.context);
 		    CGContextFillRect(context, rect);
 
 		    /*
@@ -1064,7 +1066,9 @@ XCopyPlane(
 		    CGImageRef subimage = CGImageCreateWithImageInRect(
 			    img, srcRect);
 		    CGContextClipToMask(context, rect, subimage);
-		    TkMacOSXSetColorInContext(gc, gc->foreground, context);
+		    TkMacOSXSetColorInContext(gc, gc->foreground,
+			    TkMacOSXGetNSViewForDrawable(dst).effectiveAppearance,
+			    context);
 		    CGContextFillRect(context, rect);
 		    CGContextRestoreGState(context);
 		    CGImageRelease(img);

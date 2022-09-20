@@ -205,7 +205,7 @@ typedef struct TkMacOSXDrawingContext {
     CGContextRef context;
     NSView *view;
     HIShapeRef clipRgn;
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
+#if 0 && MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
     NSAppearance *savedAppearance;
 #endif
 } TkMacOSXDrawingContext;
@@ -254,6 +254,7 @@ MODULE_SCOPE int	TkMacOSXSetupDrawingContext(Drawable d, GC gc,
 MODULE_SCOPE void	TkMacOSXRestoreDrawingContext(
 			    TkMacOSXDrawingContext *dcPtr);
 MODULE_SCOPE void	TkMacOSXSetColorInContext(GC gc, unsigned long pixel,
+			     NSObject *appearance,
 			    CGContextRef context);
 #define TkMacOSXGetTkWindow(window) ((TkWindow *)Tk_MacOSXGetTkWindow(window))
 #define TkMacOSXGetNSWindowForDrawable(drawable) ((NSWindow *)TkMacOSXDrawable(drawable))
@@ -291,6 +292,7 @@ MODULE_SCOPE void       TkMacOSXWinNSBounds(TkWindow *winPtr, NSView *view,
 MODULE_SCOPE Bool       TkMacOSXInDarkMode(Tk_Window tkwin);
 MODULE_SCOPE void	TkMacOSXDrawAllViews(ClientData clientData);
 MODULE_SCOPE unsigned long TkMacOSXClearPixel(void);
+MODULE_SCOPE int	TkSetMacColor2(unsigned long pixel, void *macColor, NSObject *appearance);
 
 #pragma mark Private Objective-C Classes
 
@@ -363,6 +365,10 @@ VISIBILITY_HIDDEN
 - (void)_resetAutoreleasePool;
 - (void)_lockAutoreleasePool;
 - (void)_unlockAutoreleasePool;
+@end
+@interface TKApplication(TKColor)
+- (void) performAsCurrentDrawingAppearance:(void (^)(void))block
+			   usingAppearance:(NSObject*)appearance;
 @end
 @interface TKApplication(TKKeyboard)
 - (void) keyboardChanged: (NSNotification *) notification;
