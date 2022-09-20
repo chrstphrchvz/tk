@@ -33,31 +33,41 @@ static NSAppearance *darkAqua = nil;
 #endif
 
 #pragma mark TKApplication(TKColor)
+
+/*
+ * Method in which to perform any appearance-dependent code.
+ *
+ * On macOS 11 and later, this simply wraps
+ * NSAppearance performAsCurrentDrawingAppearance:.
+ *
+ * On macOS 10.14 and 10.15, this uses the workaround
+ * of saving, temporarily setting, and then restoring
+ * the deprecated NSAppearance.currentAppearance property.
+ *
+ * On earlier macOS versions this simply performs block().
+ */
 @implementation TKApplication(TKColor)
 - (void) performAsCurrentDrawingAppearance:(void (^)(void))block
 			   usingAppearance:(NSObject*)appearance
 {
-#if 1 || MAC_OS_X_VERSION_MAX_ALLOWED >= 101400 && MAC_OS_X_VERSION_MIN_REQUIRED < 110000
-    NSAppearance *savedAppearance = nil;
-#endif
-#if 0 && MAC_OS_X_VERSION_MAX_ALLOWED >= 110000
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 110000
     if(@available(macOS 11.0, *)) {
 	[(NSAppearance *)appearance performAsCurrentDrawingAppearance:block];
 	return;
     }
 #endif
-#if 1 || MAC_OS_X_VERSION_MAX_ALLOWED >= 101400 && MAC_OS_X_VERSION_MIN_REQUIRED < 110000
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400 && MAC_OS_X_VERSION_MIN_REQUIRED < 110000
     if(@available(macOS 10.14, *)) {
-	savedAppearance = NSAppearance.currentAppearance;
+	NSAppearance *savedAppearance = NSAppearance.currentAppearance;
 	NSAppearance.currentAppearance = (NSAppearance *)appearance;
-    }
-#endif
-    block();
-#if 1 || MAC_OS_X_VERSION_MAX_ALLOWED >= 101400 && MAC_OS_X_VERSION_MIN_REQUIRED < 110000
-    if(@available(macOS 10.14, *)) {
+	block();
 	NSAppearance.currentAppearance = savedAppearance;
+	return;
     }
 #endif
+
+    block();
 }
 @end
 #pragma mark -
@@ -373,9 +383,9 @@ GetRGBA(
 		color = [[NSColor whiteColor] colorUsingColorSpace:sRGB];
 	    } else {
 		[NSApp performAsCurrentDrawingAppearance:^{
-				color = [[NSColor textColor] colorUsingColorSpace:sRGB];
-			}
-			usingAppearance:appearance
+			color = [[NSColor textColor] colorUsingColorSpace:sRGB];
+		    }
+		    usingAppearance:appearance
 		];
 	    }
 	} else if (entry->index == pressedButtonTextIndex) {
@@ -386,7 +396,7 @@ GetRGBA(
 	    }
 	} else {
 	    [NSApp performAsCurrentDrawingAppearance:^{
-		color = [[NSColor valueForKey:entry->selector] colorUsingColorSpace:sRGB];
+		    color = [[NSColor valueForKey:entry->selector] colorUsingColorSpace:sRGB];
 		}
 		usingAppearance:appearance
 	    ];
