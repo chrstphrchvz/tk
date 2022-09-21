@@ -252,7 +252,6 @@ static void GetBackgroundColor(
 {
     TkWindow *winPtr = (TkWindow *)tkwin;
     TkWindow *containerPtr = (TkWindow *)TkGetContainer(tkwin);
-    NSView *view = Tk_MacOSXGetNSViewForDrawable((Drawable)winPtr->privatePtr);
 
     while (containerPtr && containerPtr->privatePtr) {
 	if (containerPtr->privatePtr->flags & TTK_HAS_CONTRASTING_BG) {
@@ -268,7 +267,7 @@ static void GetBackgroundColor(
 	if ([NSApp macOSVersion] > 101300) {
 	    NSColorSpace *deviceRGB = [NSColorSpace deviceRGBColorSpace];
 	    NSColor *windowColor = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
-		    [NSColor windowBackgroundColor], deviceRGB, view.effectiveAppearance);
+		    [NSColor windowBackgroundColor], deviceRGB, TkMacOSXInDarkMode(tkwin));
 	    [windowColor getComponents: rgba];
 	} else {
 	    for (int i = 0; i < 4; i++) {
@@ -884,7 +883,7 @@ static void DrawDarkCheckBox(
 {
     CGRect checkbounds = {{0, bounds.size.height / 2 - 8}, {16, 16}};
     NSColorSpace *deviceRGB = [NSColorSpace deviceRGBColorSpace];
-    __block CGColorRef cgstroke;
+    NSColor *stroke;
     CGFloat x, y;
 
     bounds = CGRectOffset(checkbounds, bounds.origin.x, bounds.origin.y);
@@ -906,17 +905,13 @@ static void DrawDarkCheckBox(
     HighlightButtonBorder(context, bounds);
     if ((state & TTK_STATE_SELECTED) || (state & TTK_STATE_ALTERNATE)) {
 	CGContextSetStrokeColorSpace(context, deviceRGB.CGColorSpace);
-	__block NSColor *stroke;
 	if (state & TTK_STATE_DISABLED) {
 	    stroke = [NSColor disabledControlTextColor];
 	} else {
 	    stroke = [NSColor controlTextColor];
 	}
-	[NSApp performAsCurrentDrawingAppearance:^{
-		cgstroke = CGCOLOR(stroke);
-	    }
-	    usingAppearance:[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]
-	];
+	CGColorRef cgstroke = TkMacOSXGetCGColorFromNSColorUsingAppearance(
+		stroke, YES);
 	CGContextSetStrokeColorWithColor(context, cgstroke);
     }
     if (state & TTK_STATE_SELECTED) {
@@ -948,7 +943,7 @@ static void DrawDarkRadioButton(
 {
     CGRect checkbounds = {{0, bounds.size.height / 2 - 9}, {18, 18}};
     NSColorSpace *deviceRGB = [NSColorSpace deviceRGBColorSpace];
-    __block CGColorRef cgfill;
+    NSColor *fill;
     CGFloat x, y;
 
     bounds = CGRectOffset(checkbounds, bounds.origin.x, bounds.origin.y);
@@ -970,17 +965,13 @@ static void DrawDarkRadioButton(
     HighlightButtonBorder(context, bounds);
     if ((state & TTK_STATE_SELECTED) || (state & TTK_STATE_ALTERNATE)) {
 	CGContextSetStrokeColorSpace(context, deviceRGB.CGColorSpace);
-	__block NSColor *fill;
 	if (state & TTK_STATE_DISABLED) {
 	    fill = [NSColor disabledControlTextColor];
 	} else {
 	    fill = [NSColor controlTextColor];
 	}
-	[NSApp performAsCurrentDrawingAppearance:^{
-		cgfill = CGCOLOR(fill);
-	    }
-	    usingAppearance:[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]
-	];
+	CGColorRef cgfill = TkMacOSXGetCGColorFromNSColorUsingAppearance(
+		fill, YES);
 	CGContextSetFillColorWithColor(context, cgfill);
     }
     if (state & TTK_STATE_SELECTED) {
@@ -1875,12 +1866,8 @@ static void EntryElementDraw(
 	BEGIN_DRAWING(d)
 	if (backgroundPtr == NULL) {
 	    if ([NSApp macOSVersion] > 100800) {
-		__block CGColorRef cgfill;
-		[NSApp performAsCurrentDrawingAppearance:^{
-			cgfill = CGCOLOR([NSColor textBackgroundColor]);
-		    }
-		    usingAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua]
-		];
+		CGColorRef cgfill = TkMacOSXGetCGColorFromNSColorUsingAppearance(
+			[NSColor textBackgroundColor], NO);
 		CGContextSetFillColorWithColor(dc.context, cgfill);
 	    } else {
 		CGContextSetRGBFillColor(dc.context, 1.0, 1.0, 1.0, 1.0);
@@ -1968,12 +1955,8 @@ static void ComboboxElementDraw(
 	if ([NSApp macOSVersion] > 100800) {
 	    if ((state & TTK_STATE_BACKGROUND) &&
 		!(state & TTK_STATE_DISABLED)) {
-		__block CGColorRef cgbackground;
-		[NSApp performAsCurrentDrawingAppearance:^{
-			cgbackground = CGCOLOR([NSColor textBackgroundColor]);
-		    }
-		    usingAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua]
-		];
+		CGColorRef cgbackground = TkMacOSXGetCGColorFromNSColorUsingAppearance(
+			[NSColor textBackgroundColor], NO);
 		CGRect innerBounds = CGRectInset(bounds, 1, 4);
 		bounds.origin.y += 1;
 		SolidFillRoundedRectangle(dc.context, innerBounds, 4, cgbackground);
@@ -3141,14 +3124,8 @@ static void DisclosureElementDraw(
 	if ([NSApp macOSVersion] >= 110000) {
 	    CGFloat rgba[4];
 	    NSColorSpace *deviceRGB = [NSColorSpace deviceRGBColorSpace];
-	    __block NSColor *stroke;
-	    NSView *view = Tk_MacOSXGetNSViewForDrawable(d);
-	    [NSApp performAsCurrentDrawingAppearance:^{
-		    stroke = [[NSColor textColor]
-			colorUsingColorSpace: deviceRGB];
-		}
-		usingAppearance:view.effectiveAppearance
-	    ];
+	    NSColor *stroke = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
+		[NSColor textColor], deviceRGB, TkMacOSXInDarkMode(tkwin));
 	    [stroke getComponents: rgba];
 	    if (state & TTK_TREEVIEW_STATE_OPEN) {
 		DrawOpenDisclosure(dc.context, bounds, 2, 8, rgba);

@@ -267,8 +267,7 @@ MODULE_SCOPE int	TkMacOSXSetupDrawingContext(Drawable d, GC gc,
 MODULE_SCOPE void	TkMacOSXRestoreDrawingContext(
 			    TkMacOSXDrawingContext *dcPtr);
 MODULE_SCOPE void	TkMacOSXSetColorInContext(GC gc, unsigned long pixel,
-			     NSObject *appearance,
-			    CGContextRef context);
+			    CGContextRef context, BOOL useDarkAppearance);
 #define TkMacOSXGetTkWindow(window) ((TkWindow *)Tk_MacOSXGetTkWindow(window))
 #define TkMacOSXGetNSWindowForDrawable(drawable) ((NSWindow *)TkMacOSXDrawable(drawable))
 #define TkMacOSXGetNSViewForDrawable(macWin) ((NSView *)Tk_MacOSXGetNSViewForDrawable((Drawable)(macWin)))
@@ -305,13 +304,13 @@ MODULE_SCOPE void       TkMacOSXWinNSBounds(TkWindow *winPtr, NSView *view,
 MODULE_SCOPE Bool       TkMacOSXInDarkMode(Tk_Window tkwin);
 MODULE_SCOPE void	TkMacOSXDrawAllViews(ClientData clientData);
 MODULE_SCOPE unsigned long TkMacOSXClearPixel(void);
-MODULE_SCOPE int	TkSetMacColor2(unsigned long pixel, void *macColor, NSObject *appearance);
-MODULE_SCOPE NSObject*	TkMacOSXGetNSAppearanceForDrawable(Drawable drawable);
+MODULE_SCOPE int	TkSetMacColor2(unsigned long pixel, CGColorRef *macColor,
+			    BOOL useDarkAppearance);
 MODULE_SCOPE CGColorRef	TkMacOSXGetCGColorFromNSColorUsingAppearance(
-			    NSColor *color, NSObject *appearance);
+			    NSColor *color, BOOL useDarkAppearance);
 MODULE_SCOPE NSColor*	TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
 			    NSColor *color, NSColorSpace *colorSpace,
-			    NSObject *appearance);
+			    BOOL useDarkAppearance);
 
 #pragma mark Private Objective-C Classes
 
@@ -387,7 +386,7 @@ VISIBILITY_HIDDEN
 @end
 @interface TKApplication(TKColor)
 - (void) performAsCurrentDrawingAppearance:(void (^)(void))block
-			   usingAppearance:(NSObject*)appearance;
+		       usingDarkAppearance:(BOOL)useDarkAppearance;
 @end
 @interface TKApplication(TKKeyboard)
 - (void) keyboardChanged: (NSNotification *) notification;

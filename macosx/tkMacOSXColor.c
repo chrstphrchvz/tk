@@ -48,11 +48,15 @@ static NSAppearance *darkAqua = nil;
  */
 @implementation TKApplication(TKColor)
 - (void) performAsCurrentDrawingAppearance:(void (^)(void))block
-			   usingAppearance:(NSObject*)appearance
+		       usingDarkAppearance:(BOOL)useDarkAppearance
 {
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
+    NSAppearance *appearance = useDarkAppearance ? darkAqua : lightAqua;
+#endif
+
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= 110000
     if(@available(macOS 11.0, *)) {
-	[(NSAppearance *)appearance performAsCurrentDrawingAppearance:block];
+	[appearance performAsCurrentDrawingAppearance:block];
 	return;
     }
 #endif
@@ -60,7 +64,7 @@ static NSAppearance *darkAqua = nil;
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400 && MAC_OS_X_VERSION_MIN_REQUIRED < 110000
     if(@available(macOS 10.14, *)) {
 	NSAppearance *savedAppearance = NSAppearance.currentAppearance;
-	NSAppearance.currentAppearance = (NSAppearance *)appearance;
+	NSAppearance.currentAppearance = appearance;
 	block();
 	NSAppearance.currentAppearance = savedAppearance;
 	return;
@@ -76,45 +80,31 @@ MODULE_SCOPE
 CGColorRef
 TkMacOSXGetCGColorFromNSColorUsingAppearance(
     NSColor *color,
-    NSObject *appearance)
+    BOOL useDarkAppearance)
 {
     __block CGColorRef result = NULL;
     [NSApp performAsCurrentDrawingAppearance:^{
 	    result = CGCOLOR(color);
 	}
-	usingAppearance:appearance
+	usingDarkAppearance:useDarkAppearance
     ];
     return result;
 }
 
 MODULE_SCOPE
 NSColor *
-TkMacOSXGetComponentBasedNSColorFromNSColorUsingAppearance(
+TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
     NSColor *color,
     NSColorSpace *colorSpace,
-    NSObject *appearance)
+    BOOL useDarkAppearance)
 {
     __block NSColor *result = nil;
     [NSApp performAsCurrentDrawingAppearance:^{
 	    result = [color colorUsingColorSpace:colorSpace];
 	}
-	usingAppearance:appearance
+	usingDarkAppearance:useDarkAppearance
     ];
     return result;
-}
-
-MODULE_SCOPE
-NSObject *
-TkMacOSXGetNSAppearanceForDrawable(
-    Drawable drawable)
-{
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
-    if (@available(macOS 10.14, *)) {
-	NSView *view = Tk_MacOSXGetNSViewForDrawable(drawable);
-	return view.effectiveAppearance;
-    }
-#endif
-    return nil;
 }
 
 static NSColorSpace* sRGB = NULL;
@@ -367,7 +357,7 @@ GetRGBA(
     SystemColorDatum *entry,
     unsigned long pixel,
     CGFloat *rgba,
-    NSObject *appearance)
+    BOOL useDarkAppearance)
 {
     NSColor *bgColor, *color = nil;
     int OSVersion = [NSApp macOSVersion];
@@ -395,9 +385,8 @@ GetRGBA(
 	    }
 	} else {
 	    bgColor = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
-		    [NSColor windowBackgroundColor], sRGB, appearance);
+		    [NSColor windowBackgroundColor], sRGB, useDarkAppearance);
 	    [bgColor getComponents: rgba];
-	    
 	}
 	if (rgba[0] + rgba[1] + rgba[2] < 1.5) {
 	    for (int i=0; i<3; i++) {
@@ -424,7 +413,7 @@ GetRGBA(
 		color = [[NSColor whiteColor] colorUsingColorSpace:sRGB];
 	    } else {
 		color = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
-			[NSColor textColor], sRGB, appearance);
+			[NSColor textColor], sRGB, useDarkAppearance);
 	    }
 	} else if (entry->index == pressedButtonTextIndex) {
 	    if (OSVersion < 120000) {
@@ -434,14 +423,14 @@ GetRGBA(
 	    }
 	} else {
 	    color = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
-		    [NSColor valueForKey:entry->selector], sRGB, appearance);
+		    [NSColor valueForKey:entry->selector], sRGB, useDarkAppearance);
 	}
 	[color getComponents: rgba];
 	break;
     case HIText:
 #ifdef __LP64__
-	color = TkMacOSXGetComponentBasedNSColorFromNSColorUsingAppearance(
-		[NSColor textColor], sRGB, appearance);
+	color = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
+		[NSColor textColor], sRGB, useDarkAppearance);
 	[color getComponents: rgba];
 #else
 	{
@@ -458,8 +447,8 @@ GetRGBA(
 #endif
 	break;
     case HIBackground:
-	color = TkMacOSXGetComponentBasedNSColorFromNSColorUsingAppearance(
-		[NSColor windowBackgroundColor], sRGB, appearance);
+	color = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
+		[NSColor windowBackgroundColor], sRGB, useDarkAppearance);
 	[color getComponents: rgba];
 	break;
     default:
@@ -498,7 +487,7 @@ SetCGColorComponents(
     SystemColorDatum *entry,
     unsigned long pixel,
     CGColorRef *c,
-    NSObject *appearance)
+    BOOL useDarkAppearance)
 {
     CGFloat rgba[4] = {0, 0, 0, 1};
 
@@ -513,7 +502,7 @@ SetCGColorComponents(
      	OSStatus err = ChkErr(HIThemeBrushCreateCGColor, entry->value, c);
      	return err == noErr;
     }
-    GetRGBA(entry, pixel, rgba, appearance);
+    GetRGBA(entry, pixel, rgba, useDarkAppearance);
     *c = CGColorCreate(sRGB.CGColorSpace, rgba);
     [pool drain];
     return true;
@@ -563,7 +552,7 @@ TkMacOSXInDarkMode(Tk_Window tkwin)
 /*
  *----------------------------------------------------------------------
  *
- * TkSetMacColor --
+ * TkSetMacColor2 --
  *
  *	Sets the components of a CGColorRef from an XColor pixel value.  The
  *      pixel value is used to look up the color in the system color table, and
@@ -581,22 +570,22 @@ TkMacOSXInDarkMode(Tk_Window tkwin)
 
 int
 TkSetMacColor(
-    unsigned long pixel,	/* Pixel value to convert. */
-    void *macColor)		/* CGColorRef to modify. */
+    TCL_UNUSED(unsigned long),
+    TCL_UNUSED(void *))
 {
-    return (int)((uintptr_t)(pixel)^(uintptr_t)(macColor));
+    // This function is now an unused stub.
+    return false;
 }
 int
 TkSetMacColor2(
     unsigned long pixel,	/* Pixel value to convert. */
-    void *macColor,		/* CGColorRef to modify. */
-    NSObject *appearance)
+    CGColorRef *color,		/* CGColorRef to modify. */
+    BOOL useDarkAppearance)
 {
-    CGColorRef *color = (CGColorRef*)macColor;
     SystemColorDatum *entry = GetEntryFromPixel(pixel);
 
     if (entry) {
-	return SetCGColorComponents(entry, pixel, color, appearance);
+	return SetCGColorComponents(entry, pixel, color, useDarkAppearance);
     } else {
 	return false;
     }
@@ -628,8 +617,8 @@ TkMacOSXGetNSColor(
     NSColor *nsColor = nil;
 
     TkSetMacColor2(pixel, &cgColor,
-	    // I don't think any TkMacOSXGetNSColor() users require the appearance to be set
-	    nil);
+	    NO // Not aware of any TkMacOSXGetNSColor() users which require a particular appearance
+    );
     if (cgColor) {
 	nsColor = [NSColor colorWithColorSpace:sRGB
 			components:CGColorGetComponents(cgColor)
@@ -661,8 +650,8 @@ void
 TkMacOSXSetColorInContext(
     TCL_UNUSED(GC),
     unsigned long pixel,
-    NSObject *appearance,
-    CGContextRef context)
+    CGContextRef context,
+    BOOL useDarkAppearance)
 {
     OSStatus err = noErr;
     CGColorRef cgColor = NULL;
@@ -691,7 +680,7 @@ TkMacOSXSetColorInContext(
 		    context, kHIThemeOrientationNormal);
 	    break;
 	default:
-	    SetCGColorComponents(entry, pixel, &cgColor, appearance);
+	    SetCGColorComponents(entry, pixel, &cgColor, useDarkAppearance);
 	    break;
 	}
     }
@@ -765,7 +754,7 @@ TkpGetColor(
 	if (hPtr != NULL) {
 	    SystemColorDatum *entry = (SystemColorDatum *)Tcl_GetHashValue(hPtr);
 	    CGColorRef c = NULL;
-	    NSObject *windowAppearance = nil;
+	    BOOL windowAppearanceIsDark = NO;
 
 	    p.pixel.colortype = entry->type;
 	    p.pixel.value = entry->index;
@@ -773,20 +762,22 @@ TkpGetColor(
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
 	    if (@available(macOS 10.14, *)) {
-		windowAppearance = view
+		NSAppearance *windowAppearance = view
 			? [view effectiveAppearance]
 			: [NSApp effectiveAppearance];
+		windowAppearanceIsDark =
+			(windowAppearance.name == NSAppearanceNameDarkAqua);
 	    }
 #endif
 
 	    if (entry->type == semantic) {
 		CGFloat rgba[4];
-		GetRGBA(entry, p.ulong, rgba, windowAppearance);
+		GetRGBA(entry, p.ulong, rgba, windowAppearanceIsDark);
 		color.red   = rgba[0] * 65535.0;
 		color.green = rgba[1] * 65535.0;
 		color.blue  = rgba[2] * 65535.0;
 		haveValidXColor = True;
-	    } else if (SetCGColorComponents(entry, 0, &c, windowAppearance)) {
+	    } else if (SetCGColorComponents(entry, 0, &c, windowAppearanceIsDark)) {
 		const size_t n = CGColorGetNumberOfComponents(c);
 		const CGFloat *rgba = CGColorGetComponents(c);
 
@@ -809,7 +800,7 @@ TkpGetColor(
 	    if (@available(macOS 10.14, *)) {
 		// Not sure whether colormap should also be set for non-semantic color
 		if (haveValidXColor && entry->type == semantic) {
-		    if ([(NSAppearance *)windowAppearance name] == NSAppearanceNameDarkAqua) {
+		    if (windowAppearanceIsDark) {
 			colormap = darkColormap;
 		    } else {
 			colormap = lightColormap;

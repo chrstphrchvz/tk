@@ -318,14 +318,12 @@ TkMacOSXDrawCGImage(
 		CGContextSetRGBFillColor(context, 0.0, 0.0, 0.0, 1.0);
 	    } else {
 		if (imageBackground != transparentColor) {
-		    TkMacOSXSetColorInContext(gc, imageBackground, 
-		    TkMacOSXGetNSViewForDrawable(d).effectiveAppearance,
-		    context);
+		    TkMacOSXSetColorInContext(gc, imageBackground, context,
+			    TkMacOSXInDarkMode((Tk_Window)macDraw->winPtr));
 		    CGContextFillRect(context, dstBounds);
 		}
-		TkMacOSXSetColorInContext(gc, imageForeground,
-			TkMacOSXGetNSViewForDrawable(d).effectiveAppearance,
-			context);
+		TkMacOSXSetColorInContext(gc, imageForeground, context,
+			TkMacOSXInDarkMode((Tk_Window)macDraw->winPtr));
 	    }
 	}
 
@@ -1400,14 +1398,6 @@ TkMacOSXSetupDrawingContext(
 	    CGContextClipToRect(dc.context, r);
 	}
     }
-#if 0 && MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
-    if (@available(macOS 10.14, *)) {
-	dc.savedAppearance = NSAppearance.currentAppearance;
-	if (view) {
-	    NSAppearance.currentAppearance = view.effectiveAppearance;
-	}
-    }
-#endif
     if (gc) {
 	static const CGLineCap cgCap[] = {
 	    [CapNotLast] = kCGLineCapButt,
@@ -1423,8 +1413,8 @@ TkMacOSXSetupDrawingContext(
 	bool shouldAntialias = !notAA(gc->line_width);
 	double w = gc->line_width;
 
-	TkMacOSXSetColorInContext(gc, gc->foreground,
-		view.effectiveAppearance, dc.context);
+	TkMacOSXSetColorInContext(gc, gc->foreground, dc.context,
+		TkMacOSXInDarkMode((Tk_Window)macDraw->winPtr));
 	if (view) {
 	    CGSize size = NSSizeToCGSize([view bounds].size);
 	    CGContextSetPatternPhase(dc.context, size);
@@ -1518,11 +1508,6 @@ TkMacOSXRestoreDrawingContext(
 	CFRelease(dcPtr->clipRgn);
 	dcPtr->clipRgn = NULL;
     }
-#if 0 && MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
-    if (@available(macOS 10.14, *)) {
-	NSAppearance.currentAppearance = dcPtr->savedAppearance;
-    }
-#endif
 
 #ifdef TK_MAC_DEBUG
     bzero(dcPtr, sizeof(TkMacOSXDrawingContext));
