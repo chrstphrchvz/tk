@@ -122,22 +122,6 @@ static CGFloat pressedPushButtonGradient[8] = {
 };
 
 /*
- * When building on systems earlier than 10.8 there is no reasonable way to
- * convert an NSColor to a CGColor.  We do run-time checking of the OS version,
- * and never need the CGColor property on older systems, so we can use this
- * CGCOLOR macro, which evaluates to NULL without raising compiler warnings.
- * Similarly, we never draw rounded rectangles on older systems which did not
- * have CGPathCreateWithRoundedRect, so we just redefine it to return NULL.
- */
-
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1080
-#define CGCOLOR(nscolor) (nscolor).CGColor
-#else
-#define CGCOLOR(nscolor) (0 ? (CGColorRef) (nscolor) : NULL)
-#define CGPathCreateWithRoundedRect(w, x, y, z) NULL
-#endif
-
-/*
  * If we try to draw a rounded rectangle with too large of a radius
  * CoreGraphics will raise a fatal exception.  This macro returns if
  * the width or height is less than twice the radius.  Presumably this
@@ -282,14 +266,10 @@ static void GetBackgroundColor(
 	}
     } else {
 	if ([NSApp macOSVersion] > 101300) {
-	    [NSApp performAsCurrentDrawingAppearance:^{
-		    NSColorSpace *deviceRGB = [NSColorSpace deviceRGBColorSpace];
-		    NSColor *windowColor = [[NSColor windowBackgroundColor]
-			    colorUsingColorSpace: deviceRGB];
-		    [windowColor getComponents: rgba];
-		}
-		usingAppearance:view.effectiveAppearance
-	    ];
+	    NSColorSpace *deviceRGB = [NSColorSpace deviceRGBColorSpace];
+	    NSColor *windowColor = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
+		    [NSColor windowBackgroundColor], deviceRGB, view.effectiveAppearance);
+	    [windowColor getComponents: rgba];
 	} else {
 	    for (int i = 0; i < 4; i++) {
 		rgba[i] = WINDOWBACKGROUND[i];
@@ -557,7 +537,7 @@ static void SolidFillRoundedRectangle(
     CGContextRef context,
     CGRect bounds,
     CGFloat radius,
-    NSColor *color)
+    CGColorRef cgColor)
 {
     CGPathRef path;
 
@@ -566,7 +546,7 @@ static void SolidFillRoundedRectangle(
     if (!path) {
 	return;
     }
-    CGContextSetFillColorWithColor(context, CGCOLOR(color));//
+    CGContextSetFillColorWithColor(context, cgColor);
     CGContextBeginPath(context);
     CGContextAddPath(context, path);
     CGContextFillPath(context);
@@ -741,7 +721,7 @@ static void DrawDarkButton(
 	    faceColor = [NSColor colorWithColorSpace: deviceRGB
 		components: darkPressedButtonFace
 		count: 4];
-	    SolidFillRoundedRectangle(context, bounds, 4, faceColor);
+	    SolidFillRoundedRectangle(context, bounds, 4, CGCOLOR(faceColor));
 	}
     } else if (kind == kThemePushButton &&
 	       (state & TTK_STATE_ALTERNATE) &&
@@ -758,7 +738,7 @@ static void DrawDarkButton(
 		components: darkButtonFace
 		count: 4];
 	}
-	SolidFillRoundedRectangle(context, bounds, 4, faceColor);
+	SolidFillRoundedRectangle(context, bounds, 4, CGCOLOR(faceColor));
     }
 
     /*
@@ -823,7 +803,7 @@ static void DrawDarkIncDecButton(
 	    components: darkButtonFace
 	    count: 4];
     }
-    SolidFillRoundedRectangle(context, bounds, 4, faceColor);
+    SolidFillRoundedRectangle(context, bounds, 4, CGCOLOR(faceColor));
 
     /*
      * If pressed, paint the appropriate half blue.
@@ -886,7 +866,7 @@ static void DrawDarkBevelButton(
 	    components: darkButtonFace
 	    count: 4];
     }
-    SolidFillRoundedRectangle(context, bounds, 4, faceColor);
+    SolidFillRoundedRectangle(context, bounds, 4, CGCOLOR(faceColor));
     HighlightButtonBorder(context, bounds);
 }
 
@@ -926,13 +906,13 @@ static void DrawDarkCheckBox(
     HighlightButtonBorder(context, bounds);
     if ((state & TTK_STATE_SELECTED) || (state & TTK_STATE_ALTERNATE)) {
 	CGContextSetStrokeColorSpace(context, deviceRGB.CGColorSpace);
+	__block NSColor *stroke;
+	if (state & TTK_STATE_DISABLED) {
+	    stroke = [NSColor disabledControlTextColor];
+	} else {
+	    stroke = [NSColor controlTextColor];
+	}
 	[NSApp performAsCurrentDrawingAppearance:^{
-		NSColor *stroke;
-		if (state & TTK_STATE_DISABLED) {
-		    stroke = [NSColor disabledControlTextColor];
-		} else {
-		    stroke = [NSColor controlTextColor];
-		}
 		cgstroke = CGCOLOR(stroke);
 	    }
 	    usingAppearance:[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]
@@ -990,13 +970,13 @@ static void DrawDarkRadioButton(
     HighlightButtonBorder(context, bounds);
     if ((state & TTK_STATE_SELECTED) || (state & TTK_STATE_ALTERNATE)) {
 	CGContextSetStrokeColorSpace(context, deviceRGB.CGColorSpace);
+	__block NSColor *fill;
+	if (state & TTK_STATE_DISABLED) {
+	    fill = [NSColor disabledControlTextColor];
+	} else {
+	    fill = [NSColor controlTextColor];
+	}
 	[NSApp performAsCurrentDrawingAppearance:^{
-		NSColor *fill;
-		if (state & TTK_STATE_DISABLED) {
-		    fill = [NSColor disabledControlTextColor];
-		} else {
-		    fill = [NSColor controlTextColor];
-		}
 		cgfill = CGCOLOR(fill);
 	    }
 	    usingAppearance:[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]
@@ -1078,7 +1058,7 @@ static void DrawDarkTab(
 						   count: 4];
 	    }
 	}
-	SolidFillRoundedRectangle(context, bounds, 4, faceColor);
+	SolidFillRoundedRectangle(context, bounds, 4, CGCOLOR(faceColor));
 
         /*
          * Draw a separator line on the left side of the tab if it
@@ -1119,7 +1099,7 @@ static void DrawDarkTab(
 		faceColor = [NSColor colorWithColorSpace: deviceRGB
 					      components: darkSelectedTab
 						   count: 4];
-		SolidFillRoundedRectangle(context, bounds, 4, faceColor);
+		SolidFillRoundedRectangle(context, bounds, 4, CGCOLOR(faceColor));
 	    }
 	} else {
 	    if (OSVersion < 110000) {
@@ -1131,7 +1111,7 @@ static void DrawDarkTab(
 					      components: darkSelectedTab
 						   count: 4];
 	    }
-	    SolidFillRoundedRectangle(context, bounds, 4, faceColor);
+	    SolidFillRoundedRectangle(context, bounds, 4, CGCOLOR(faceColor));
 	}
 	HighlightButtonBorder(context, bounds);
     }
@@ -1540,7 +1520,7 @@ static void ButtonElementDraw(
 	    (state & TTK_STATE_BACKGROUND)) {
 	    CGRect innerBounds = CGRectInset(bounds, 1, 1);
 	    NSColor *whiteRGBA = [NSColor whiteColor];
-	    SolidFillRoundedRectangle(dc.context, innerBounds, 4, whiteRGBA);
+	    SolidFillRoundedRectangle(dc.context, innerBounds, 4, CGCOLOR(whiteRGBA));
 	}
 
         /*
@@ -1988,15 +1968,15 @@ static void ComboboxElementDraw(
 	if ([NSApp macOSVersion] > 100800) {
 	    if ((state & TTK_STATE_BACKGROUND) &&
 		!(state & TTK_STATE_DISABLED)) {
-		__block NSColor *background;
+		__block CGColorRef cgbackground;
 		[NSApp performAsCurrentDrawingAppearance:^{
-			background = [NSColor textBackgroundColor];
+			cgbackground = CGCOLOR([NSColor textBackgroundColor]);
 		    }
 		    usingAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua]
 		];
 		CGRect innerBounds = CGRectInset(bounds, 1, 4);
 		bounds.origin.y += 1;
-		SolidFillRoundedRectangle(dc.context, innerBounds, 4, background);
+		SolidFillRoundedRectangle(dc.context, innerBounds, 4, cgbackground);
 	    }
 	}
 	ChkErr(HIThemeDrawButton, &bounds, &info, dc.context, HIOrientation, NULL);
@@ -2269,7 +2249,7 @@ static void TrackElementDraw(
 	} else {
 	    bounds = CGRectInset(bounds, bounds.size.width / 2 - 3, 2);
 	}
-	SolidFillRoundedRectangle(dc.context, bounds, 2, trackColor);
+	SolidFillRoundedRectangle(dc.context, bounds, 2, CGCOLOR(trackColor));
     }
     ChkErr(HIThemeDrawTrack, &info, NULL, dc.context, HIOrientation);
     END_DRAWING
@@ -2425,7 +2405,7 @@ static void PbarElementDraw(
 	} else {
 	    bounds = CGRectInset(bounds, bounds.size.width / 2 - 3, 1);
 	}
-	SolidFillRoundedRectangle(dc.context, bounds, 3, trackColor);
+	SolidFillRoundedRectangle(dc.context, bounds, 3, CGCOLOR(trackColor));
     }
     ChkErr(HIThemeDrawTrack, &info, NULL, dc.context, HIOrientation);
     END_DRAWING
@@ -2604,7 +2584,7 @@ static void ThumbElementDraw(
 	    components: rgba
 	    count: 4];
 	BEGIN_DRAWING(d)
-	SolidFillRoundedRectangle(dc.context, thumbBounds, 4, thumbColor);
+	SolidFillRoundedRectangle(dc.context, thumbBounds, 4, CGCOLOR(thumbColor));
 	END_DRAWING
     } else {
 	double thumbSize, trackSize, visibleSize, factor, fraction;
