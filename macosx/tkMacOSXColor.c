@@ -527,6 +527,7 @@ TkMacOSXGetNSColor(
     nsColor = [NSColor colorWithColorSpace:sRGB
 		   components:CGColorGetComponents(cgColor)
 		   count:CGColorGetNumberOfComponents(cgColor)];
+    CGColorRelease(cgColor);
     return nsColor;
 }
 
