@@ -553,7 +553,7 @@ TkMacOSXInDarkMode(Tk_Window tkwin)
 /*
  *----------------------------------------------------------------------
  *
- * TkSetMacColor2 --
+ * TkSetMacColor --
  *
  *	Sets the components of a CGColorRef from an XColor pixel value.  The
  *      pixel value is used to look up the color in the system color table, and
@@ -571,11 +571,13 @@ TkMacOSXInDarkMode(Tk_Window tkwin)
 
 int
 TkSetMacColor(
-    TCL_UNUSED(unsigned long),
-    TCL_UNUSED(void *))
+    unsigned long pixel,	/* Pixel value to convert. */
+    void *macColor)		/* CGColorRef to modify. */
 {
-    // This function is now an unused stub.
-    return false;
+    // Arbitrary; existing usage of TkSetMacColor() does not seem to depend on appearance
+    BOOL useDarkAppearance = NO;
+
+    return TkSetMacColor2(pixel, macColor, useDarkAppearance);
 }
 int
 TkSetMacColor2(
@@ -617,9 +619,7 @@ TkMacOSXGetNSColor(
     CGColorRef cgColor = NULL;
     NSColor *nsColor = nil;
 
-    TkSetMacColor2(pixel, &cgColor,
-	    NO // Not aware of any TkMacOSXGetNSColor() users which require a particular appearance
-    );
+    TkSetMacColor(pixel, &cgColor);
     if (cgColor) {
 	nsColor = [NSColor colorWithColorSpace:sRGB
 			components:CGColorGetComponents(cgColor)

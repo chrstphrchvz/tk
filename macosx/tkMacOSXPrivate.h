@@ -304,7 +304,7 @@ MODULE_SCOPE void       TkMacOSXWinNSBounds(TkWindow *winPtr, NSView *view,
 MODULE_SCOPE Bool       TkMacOSXInDarkMode(Tk_Window tkwin);
 MODULE_SCOPE void	TkMacOSXDrawAllViews(ClientData clientData);
 MODULE_SCOPE unsigned long TkMacOSXClearPixel(void);
-MODULE_SCOPE int	TkSetMacColor2(unsigned long pixel, CGColorRef *macColor,
+MODULE_SCOPE int	TkSetMacColor2(unsigned long pixel, CGColorRef *color,
 			    BOOL useDarkAppearance);
 MODULE_SCOPE CGColorRef	TkMacOSXGetCGColorFromNSColorUsingAppearance(
 			    NSColor *color, BOOL useDarkAppearance);
