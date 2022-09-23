@@ -365,12 +365,9 @@ static Bool runMenuCommand = true;
 
 	if (menuPtr && mePtr) {
 	    Tcl_Interp *interp = menuPtr->interp;
-
 	    Tcl_Preserve(interp);
 	    Tcl_Preserve(menuPtr);
-
 	    int result = TkInvokeMenu(interp, menuPtr, mePtr->index);
-
 	    if (result != TCL_OK && result != TCL_CONTINUE &&
 		    result != TCL_BREAK) {
 		Tcl_AddErrorInfo(interp, "\n    (menu invoke)");
@@ -517,7 +514,7 @@ static Bool runMenuCommand = true;
      * Make sure that we can run commands when actually using a menu.
      * See [412b80fcaf].
      */
-    
+
     runMenuCommand = true;
 }
 
