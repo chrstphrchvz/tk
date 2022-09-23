@@ -52,7 +52,6 @@ static NSAppearance *darkAqua = nil;
 {
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
     NSAppearance *appearance = useDarkAppearance ? darkAqua : lightAqua;
-#endif
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= 110000
     if(@available(macOS 11.0, *)) {
@@ -61,7 +60,7 @@ static NSAppearance *darkAqua = nil;
     }
 #endif
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400 && MAC_OS_X_VERSION_MIN_REQUIRED < 110000
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 110000
     if(@available(macOS 10.14, *)) {
 	NSAppearance *savedAppearance = NSAppearance.currentAppearance;
 	NSAppearance.currentAppearance = appearance;
@@ -69,6 +68,8 @@ static NSAppearance *darkAqua = nil;
 	NSAppearance.currentAppearance = savedAppearance;
 	return;
     }
+#endif
+
 #endif
 
     block();
