@@ -728,7 +728,6 @@ TkpGetColor(
     TkColor *tkColPtr;
     XColor color;
     Colormap colormap = tkwin ? Tk_Colormap(tkwin) : noColormap;
-    NSView *view = nil;
     Bool haveValidXColor = False;
     static Bool initialized = NO;
     static NSColorSpace* sRGB = nil;
@@ -740,8 +739,6 @@ TkpGetColor(
     }
     if (tkwin) {
 	display = Tk_Display(tkwin);
-	Drawable d = Tk_WindowId(tkwin);
-	view = TkMacOSXGetNSViewForDrawable(d);
     }
 
     /*
@@ -755,21 +752,11 @@ TkpGetColor(
 	if (hPtr != NULL) {
 	    SystemColorDatum *entry = (SystemColorDatum *)Tcl_GetHashValue(hPtr);
 	    CGColorRef c = NULL;
-	    BOOL windowAppearanceIsDark = NO;
+	    BOOL windowAppearanceIsDark = TkMacOSXInDarkMode(tkwin);
 
 	    p.pixel.colortype = entry->type;
 	    p.pixel.value = entry->index;
 	    color.pixel = p.ulong;
-
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
-	    if (@available(macOS 10.14, *)) {
-		NSAppearance *windowAppearance = view
-			? [view effectiveAppearance]
-			: [NSApp effectiveAppearance];
-		windowAppearanceIsDark =
-			(windowAppearance.name == NSAppearanceNameDarkAqua);
-	    }
-#endif
 
 	    if (entry->type == semantic) {
 		CGFloat rgba[4];
