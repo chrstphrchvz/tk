@@ -122,22 +122,6 @@ static CGFloat pressedPushButtonGradient[8] = {
 };
 
 /*
- * When building on systems earlier than 10.8 there is no reasonable way to
- * convert an NSColor to a CGColor.  We do run-time checking of the OS version,
- * and never need the CGColor property on older systems, so we can use this
- * CGCOLOR macro, which evaluates to NULL without raising compiler warnings.
- * Similarly, we never draw rounded rectangles on older systems which did not
- * have CGPathCreateWithRoundedRect, so we just redefine it to return NULL.
- */
-
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1080
-#define CGCOLOR(nscolor) (nscolor).CGColor
-#else
-#define CGCOLOR(nscolor) (0 ? (CGColorRef) (nscolor) : NULL)
-#define CGPathCreateWithRoundedRect(w, x, y, z) NULL
-#endif
-
-/*
  * If we try to draw a rounded rectangle with too large of a radius
  * CoreGraphics will raise a fatal exception.  This macro returns if
  * the width or height is less than twice the radius.  Presumably this

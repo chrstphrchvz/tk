@@ -198,6 +198,22 @@ typedef union MacKeycode_t {
 #define UNKNOWN_KEYCHAR 0xF8FD
 
 /*
+ * When building on systems earlier than 10.8 there is no reasonable way to
+ * convert an NSColor to a CGColor.  We do run-time checking of the OS version,
+ * and never need the CGColor property on older systems, so we can use this
+ * CGCOLOR macro, which evaluates to NULL without raising compiler warnings.
+ * Similarly, we never draw rounded rectangles on older systems which did not
+ * have CGPathCreateWithRoundedRect, so we just redefine it to return NULL.
+ */
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1080
+#define CGCOLOR(nscolor) (nscolor).CGColor
+#else
+#define CGCOLOR(nscolor) (0 ? (CGColorRef) (nscolor) : NULL)
+#define CGPathCreateWithRoundedRect(w, x, y, z) NULL
+#endif
+
+/*
  * Structure encapsulating current drawing environment.
  */
 
