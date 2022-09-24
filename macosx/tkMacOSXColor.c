@@ -31,6 +31,83 @@ static SystemColorDatum **systemColorIndex;
 static NSAppearance *lightAqua = nil;
 static NSAppearance *darkAqua = nil;
 #endif
+
+#pragma mark TKApplication(TKColor)
+
+/*
+ * Method in which to perform any appearance-dependent code.
+ *
+ * On macOS 11 and later, this simply wraps
+ * NSAppearance performAsCurrentDrawingAppearance:.
+ *
+ * On macOS 10.14 and 10.15, this uses the workaround
+ * of saving, temporarily setting, and then restoring
+ * the deprecated NSAppearance.currentAppearance property.
+ *
+ * On earlier macOS versions this simply performs block().
+ */
+@implementation TKApplication(TKColor)
+- (void) performAsCurrentDrawingAppearance:(void (^)(void))block
+		       usingDarkAppearance:(BOOL)useDarkAppearance
+{
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
+    NSAppearance *appearance = useDarkAppearance ? darkAqua : lightAqua;
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 110000
+    if(@available(macOS 11.0, *)) {
+	[appearance performAsCurrentDrawingAppearance:block];
+	return;
+    }
+#endif
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 110000
+    if(@available(macOS 10.14, *)) {
+	NSAppearance *savedAppearance = NSAppearance.currentAppearance;
+	NSAppearance.currentAppearance = appearance;
+	block();
+	NSAppearance.currentAppearance = savedAppearance;
+	return;
+    }
+#endif
+
+#endif
+
+    block();
+}
+@end
+#pragma mark -
+
+MODULE_SCOPE
+CGColorRef
+TkMacOSXGetCGColorFromNSColorUsingAppearance(
+    NSColor *color,
+    BOOL useDarkAppearance)
+{
+    __block CGColorRef result = NULL;
+    [NSApp performAsCurrentDrawingAppearance:^{
+	    result = CGCOLOR(color);
+	}
+	usingDarkAppearance:useDarkAppearance
+    ];
+    return result;
+}
+
+MODULE_SCOPE
+NSColor *
+TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
+    NSColor *color,
+    NSColorSpace *colorSpace,
+    BOOL useDarkAppearance)
+{
+    __block NSColor *result = nil;
+    [NSApp performAsCurrentDrawingAppearance:^{
+	    result = [color colorUsingColorSpace:colorSpace];
+	}
+	usingDarkAppearance:useDarkAppearance
+    ];
+    return result;
+}
+
 static NSColorSpace* sRGB = NULL;
 static const CGFloat WINDOWBACKGROUND[4] =
     {236.0 / 255, 236.0 / 255, 236.0 / 255, 1.0};
@@ -280,7 +357,8 @@ static void
 GetRGBA(
     SystemColorDatum *entry,
     unsigned long pixel,
-    CGFloat *rgba)
+    CGFloat *rgba,
+    BOOL useDarkAppearance)
 {
     NSColor *bgColor, *color = nil;
     int OSVersion = [NSApp macOSVersion];
@@ -307,7 +385,8 @@ GetRGBA(
 		rgba[i] = WINDOWBACKGROUND[i];
 	    }
 	} else {
-	    bgColor = [[NSColor windowBackgroundColor] colorUsingColorSpace:sRGB];
+	    bgColor = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
+		    [NSColor windowBackgroundColor], sRGB, useDarkAppearance);
 	    [bgColor getComponents: rgba];
 	}
 	if (rgba[0] + rgba[1] + rgba[2] < 1.5) {
@@ -334,7 +413,8 @@ GetRGBA(
 	    if (OSVersion > 100600 && OSVersion < 110000) {
 		color = [[NSColor whiteColor] colorUsingColorSpace:sRGB];
 	    } else {
-		color = [[NSColor textColor] colorUsingColorSpace:sRGB];
+		color = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
+			[NSColor textColor], sRGB, useDarkAppearance);
 	    }
 	} else if (entry->index == pressedButtonTextIndex) {
 	    if (OSVersion < 120000) {
@@ -343,13 +423,15 @@ GetRGBA(
 		color = [[NSColor blackColor] colorUsingColorSpace:sRGB];
 	    }
 	} else {
-	    color = [[NSColor valueForKey:entry->selector] colorUsingColorSpace:sRGB];
+	    color = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
+		    [NSColor valueForKey:entry->selector], sRGB, useDarkAppearance);
 	}
 	[color getComponents: rgba];
 	break;
     case HIText:
 #ifdef __LP64__
-	color = [[NSColor textColor] colorUsingColorSpace:sRGB];
+	color = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
+		[NSColor textColor], sRGB, useDarkAppearance);
 	[color getComponents: rgba];
 #else
 	{
@@ -366,7 +448,8 @@ GetRGBA(
 #endif
 	break;
     case HIBackground:
-	color = [[NSColor windowBackgroundColor] colorUsingColorSpace:sRGB];
+	color = TkMacOSXGetNSColorFromNSColorUsingColorSpaceAndAppearance(
+		[NSColor windowBackgroundColor], sRGB, useDarkAppearance);
 	[color getComponents: rgba];
 	break;
     default:
@@ -404,7 +487,8 @@ static Bool
 SetCGColorComponents(
     SystemColorDatum *entry,
     unsigned long pixel,
-    CGColorRef *c)
+    CGColorRef *c,
+    BOOL useDarkAppearance)
 {
     CGFloat rgba[4] = {0, 0, 0, 1};
 
@@ -419,7 +503,7 @@ SetCGColorComponents(
      	OSStatus err = ChkErr(HIThemeBrushCreateCGColor, entry->value, c);
      	return err == noErr;
     }
-    GetRGBA(entry, pixel, rgba);
+    GetRGBA(entry, pixel, rgba, useDarkAppearance);
     *c = CGColorCreate(sRGB.CGColorSpace, rgba);
     [pool drain];
     return true;
@@ -490,11 +574,21 @@ TkSetMacColor(
     unsigned long pixel,	/* Pixel value to convert. */
     void *macColor)		/* CGColorRef to modify. */
 {
-    CGColorRef *color = (CGColorRef*)macColor;
+    // Arbitrary; existing usage of TkSetMacColor() does not seem to depend on appearance
+    BOOL useDarkAppearance = NO;
+
+    return TkSetMacColor2(pixel, macColor, useDarkAppearance);
+}
+int
+TkSetMacColor2(
+    unsigned long pixel,	/* Pixel value to convert. */
+    CGColorRef *color,		/* CGColorRef to modify. */
+    BOOL useDarkAppearance)
+{
     SystemColorDatum *entry = GetEntryFromPixel(pixel);
 
     if (entry) {
-	return SetCGColorComponents(entry, pixel, color);
+	return SetCGColorComponents(entry, pixel, color, useDarkAppearance);
     } else {
 	return false;
     }
@@ -557,7 +651,8 @@ void
 TkMacOSXSetColorInContext(
     TCL_UNUSED(GC),
     unsigned long pixel,
-    CGContextRef context)
+    CGContextRef context,
+    BOOL useDarkAppearance)
 {
     OSStatus err = noErr;
     CGColorRef cgColor = NULL;
@@ -586,7 +681,7 @@ TkMacOSXSetColorInContext(
 		    context, kHIThemeOrientationNormal);
 	    break;
 	default:
-	    SetCGColorComponents(entry, pixel, &cgColor);
+	    SetCGColorComponents(entry, pixel, &cgColor, useDarkAppearance);
 	    break;
 	}
     }
@@ -633,7 +728,6 @@ TkpGetColor(
     TkColor *tkColPtr;
     XColor color;
     Colormap colormap = tkwin ? Tk_Colormap(tkwin) : noColormap;
-    NSView *view = nil;
     Bool haveValidXColor = False;
     static Bool initialized = NO;
     static NSColorSpace* sRGB = nil;
@@ -645,8 +739,6 @@ TkpGetColor(
     }
     if (tkwin) {
 	display = Tk_Display(tkwin);
-	Drawable d = Tk_WindowId(tkwin);
-	view = TkMacOSXGetNSViewForDrawable(d);
     }
 
     /*
@@ -660,31 +752,20 @@ TkpGetColor(
 	if (hPtr != NULL) {
 	    SystemColorDatum *entry = (SystemColorDatum *)Tcl_GetHashValue(hPtr);
 	    CGColorRef c = NULL;
+	    BOOL windowAppearanceIsDark = TkMacOSXInDarkMode(tkwin);
 
 	    p.pixel.colortype = entry->type;
 	    p.pixel.value = entry->index;
 	    color.pixel = p.ulong;
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101400
-	    NSAppearance *savedAppearance, *windowAppearance;
-	    if (@available(macOS 10.14, *)) {
-		savedAppearance = [NSAppearance currentAppearance];
-		windowAppearance = savedAppearance;
-		if (view) {
-		    windowAppearance = [view effectiveAppearance];
-		}
-		[NSAppearance setCurrentAppearance:windowAppearance];
-	    }
-#endif
-
 	    if (entry->type == semantic) {
 		CGFloat rgba[4];
-		GetRGBA(entry, p.ulong, rgba);
+		GetRGBA(entry, p.ulong, rgba, windowAppearanceIsDark);
 		color.red   = rgba[0] * 65535.0;
 		color.green = rgba[1] * 65535.0;
 		color.blue  = rgba[2] * 65535.0;
 		haveValidXColor = True;
-	    } else if (SetCGColorComponents(entry, 0, &c)) {
+	    } else if (SetCGColorComponents(entry, 0, &c, windowAppearanceIsDark)) {
 		const size_t n = CGColorGetNumberOfComponents(c);
 		const CGFloat *rgba = CGColorGetComponents(c);
 
@@ -707,13 +788,12 @@ TkpGetColor(
 	    if (@available(macOS 10.14, *)) {
 		// Not sure whether colormap should also be set for non-semantic color
 		if (haveValidXColor && entry->type == semantic) {
-		    if ([windowAppearance name] == NSAppearanceNameDarkAqua) {
+		    if (windowAppearanceIsDark) {
 			colormap = darkColormap;
 		    } else {
 			colormap = lightColormap;
 		    }
 		}
-		[NSAppearance setCurrentAppearance:savedAppearance];
 	    }
 #endif
 	}

@@ -318,10 +318,12 @@ TkMacOSXDrawCGImage(
 		CGContextSetRGBFillColor(context, 0.0, 0.0, 0.0, 1.0);
 	    } else {
 		if (imageBackground != transparentColor) {
-		    TkMacOSXSetColorInContext(gc, imageBackground, context);
+		    TkMacOSXSetColorInContext(gc, imageBackground, context,
+			    TkMacOSXInDarkMode((Tk_Window)macDraw->winPtr));
 		    CGContextFillRect(context, dstBounds);
 		}
-		TkMacOSXSetColorInContext(gc, imageForeground, context);
+		TkMacOSXSetColorInContext(gc, imageForeground, context,
+			TkMacOSXInDarkMode((Tk_Window)macDraw->winPtr));
 	    }
 	}
 
@@ -1411,7 +1413,8 @@ TkMacOSXSetupDrawingContext(
 	bool shouldAntialias = !notAA(gc->line_width);
 	double w = gc->line_width;
 
-	TkMacOSXSetColorInContext(gc, gc->foreground, dc.context);
+	TkMacOSXSetColorInContext(gc, gc->foreground, dc.context,
+		TkMacOSXInDarkMode((Tk_Window)macDraw->winPtr));
 	if (view) {
 	    CGSize size = NSSizeToCGSize([view bounds].size);
 	    CGContextSetPatternPhase(dc.context, size);
