@@ -456,7 +456,7 @@ TkMacOSXInDarkMode(Tk_Window tkwin)
 	if (view) {
 	    name = [[view effectiveAppearance] name];
 	} else {
-	    name = [[NSAppearance currentAppearance] name];
+	    name = [[NSApp effectiveAppearance] name];
 	}
 	return (name == NSAppearanceNameDarkAqua);
     }
