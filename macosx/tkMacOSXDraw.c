@@ -1118,11 +1118,9 @@ TkScrollWindow(
     TkRegion damageRgn)		/* Region to accumulate damage in. */
 {
     Drawable drawable = Tk_WindowId(tkwin);
-    MacDrawable *macDraw = (MacDrawable *)drawable;
-    TKContentView *view = (TKContentView *)TkMacOSXGetNSViewForDrawable(macDraw);
     HIShapeRef srcRgn, dstRgn;
     HIMutableShapeRef dmgRgn = HIShapeCreateMutable();
-    NSRect bounds, viewSrcRect, srcRect, dstRect;
+    NSRect srcRect, dstRect;
     int result = 0;
 
 #if TK_MAC_SYNCHRONOUS_DRAWING
@@ -1130,21 +1128,21 @@ TkScrollWindow(
     if (XCopyArea(Tk_Display(tkwin), drawable, drawable, gc, x, y,
 	    (unsigned)width, (unsigned)height, x+dx, y+dy) == Success) {
 #else
+    TKContentView *view = (TKContentView *)TkMacOSXGetNSViewForDrawable(macDraw);
     if (view) {
 #endif
-
-  	/*
-	 * Get the scroll area in NSView coordinates (origin at bottom left).
-	 */
-
-  	bounds = [view bounds];
- 	viewSrcRect = NSMakeRect(macDraw->xOff + x,
-		bounds.size.height - height - (macDraw->yOff + y),
-		width, height);
 
 #if TK_MAC_SYNCHRONOUS_DRAWING
 	// Already scrolled using XCopyArea()
 #else
+  	/*
+	 * Get the scroll area in NSView coordinates (origin at bottom left).
+	 */
+
+  	NSRect bounds = [view bounds];
+ 	NSRect viewSrcRect = NSMakeRect(macDraw->xOff + x,
+		bounds.size.height - height - (macDraw->yOff + y),
+		width, height);
 	/*
 	 * Scroll the rectangle.
 	 */
