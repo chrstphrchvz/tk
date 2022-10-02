@@ -404,6 +404,7 @@ AQUA_OBJS = tkMacOSXBitmap.o tkMacOSXButton.o tkMacOSXClipboard.o \
 	tkMacOSXServices.o tkMacOSXSubwindows.o tkMacOSXWindowEvent.o \
 	tkMacOSXWm.o tkMacOSXXStubs.o \
 	tkFileFilter.o tkMacWinMenu.o tkPointer.o tkUnix3d.o tkUnixScale.o \
+	tkUnixScrlbr.o \
 	xcolors.o xdraw.o xgc.o ximage.o xutil.o \
 	ttkMacOSXTheme.o
 
@@ -535,7 +536,8 @@ AQUA_SRCS = \
 	$(MAC_OSX_DIR)/tkMacOSXWm.c $(MAC_OSX_DIR)/tkMacOSXXStubs.c \
 	$(GENERIC_DIR)/tkFileFilter.c $(GENERIC_DIR)/tkMacWinMenu.c \
 	$(GENERIC_DIR)/tkPointer.c $(UNIX_DIR)/tkUnix3d.c \
-	$(UNIX_DIR)/tkUnixScale.c $(XLIB_DIR)/xcolors.c $(XLIB_DIR)/xdraw.c \
+	$(UNIX_DIR)/tkUnixScale.c ${UNIX_DIR}/tkUnixScrlbr.c \
+	$(XLIB_DIR)/xcolors.c $(XLIB_DIR)/xdraw.c \
 	$(XLIB_DIR)/xgc.c $(XLIB_DIR)/ximage.c $(XLIB_DIR)/xutil.c \
 	$(TTK_DIR)/ttkMacOSXTheme.c
 

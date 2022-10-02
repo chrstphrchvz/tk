@@ -252,6 +252,7 @@ TK_OBJS = \
 	tkConsole.$(OBJEXT) \
 	tkUnixMenubu.$(OBJEXT) \
 	tkUnixScale.$(OBJEXT) \
+	tkUnixScrlbr.$(OBJEXT) \
 	$(XLIB_OBJS) \
 	tkWin3d.$(OBJEXT) \
 	tkWin32Dll.$(OBJEXT) \
@@ -694,6 +695,9 @@ tkUnixMenubu.$(OBJEXT): ${UNIX_DIR}/tkUnixMenubu.c
 	$(CC) -c $(CC_SWITCHES) -DBUILD_tk -DBUILD_ttk @DEPARG@ $(CC_OBJNAME)
 
 tkUnixScale.$(OBJEXT): ${UNIX_DIR}/tkUnixScale.c
+	$(CC) -c $(CC_SWITCHES) -DBUILD_tk -DBUILD_ttk @DEPARG@ $(CC_OBJNAME)
+
+tkUnixScrlbr.$(OBJEXT): ${UNIX_DIR}/tkUnixScrlbr.c
 	$(CC) -c $(CC_SWITCHES) -DBUILD_tk -DBUILD_ttk @DEPARG@ $(CC_OBJNAME)
 
 tkWindow.$(OBJEXT): ${GENERIC_DIR}/tkWindow.c configure Makefile tkUuid.h

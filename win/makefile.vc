@@ -148,6 +148,7 @@ TKOBJS = \
 	$(TMP_DIR)\tkConsole.obj \
 	$(TMP_DIR)\tkUnixMenubu.obj \
 	$(TMP_DIR)\tkUnixScale.obj \
+	$(TMP_DIR)\tkUnixScrlbr.obj \
 	$(XLIBOBJS) \
 	$(TMP_DIR)\tkWin3d.obj \
 	$(TMP_DIR)\tkWin32Dll.obj \

@@ -36,7 +36,7 @@ typedef struct UnixScrollbar {
  * variable is declared at this scope.
  */
 
-const Tk_ClassProcs tkpScrollbarProcs = {
+const Tk_ClassProcs tkUnixScrollbarProcs = {
     sizeof(Tk_ClassProcs),	/* size */
     NULL,					/* worldChangedProc */
     NULL,					/* createProc */
@@ -46,7 +46,7 @@ const Tk_ClassProcs tkpScrollbarProcs = {
 /*
  *----------------------------------------------------------------------
  *
- * TkpCreateScrollbar --
+ * TkUnixCreateScrollbar --
  *
  *	Allocate a new TkScrollbar structure.
  *
@@ -60,7 +60,7 @@ const Tk_ClassProcs tkpScrollbarProcs = {
  */
 
 TkScrollbar *
-TkpCreateScrollbar(
+TkUnixCreateScrollbar(
     Tk_Window tkwin)
 {
     UnixScrollbar *scrollPtr = (UnixScrollbar *)ckalloc(sizeof(UnixScrollbar));
@@ -70,7 +70,7 @@ TkpCreateScrollbar(
 
     Tk_CreateEventHandler(tkwin,
 	    ExposureMask|StructureNotifyMask|FocusChangeMask,
-	    TkScrollbarEventProc, scrollPtr);
+	    TkUnixScrollbarEventProc, scrollPtr);
 
     return (TkScrollbar *) scrollPtr;
 }
@@ -78,7 +78,7 @@ TkpCreateScrollbar(
 /*
  *--------------------------------------------------------------
  *
- * TkpDisplayScrollbar --
+ * TkUnixDisplayScrollbar --
  *
  *	This procedure redraws the contents of a scrollbar window. It is
  *	invoked as a do-when-idle handler, so it only runs when there's
@@ -94,7 +94,7 @@ TkpCreateScrollbar(
  */
 
 void
-TkpDisplayScrollbar(
+TkUnixDisplayScrollbar(
     ClientData clientData)	/* Information about window. */
 {
     TkScrollbar *scrollPtr = (TkScrollbar *)clientData;
@@ -260,7 +260,7 @@ TkpDisplayScrollbar(
 /*
  *----------------------------------------------------------------------
  *
- * TkpComputeScrollbarGeometry --
+ * TkUnixComputeScrollbarGeometry --
  *
  *	After changes in a scrollbar's size or configuration, this procedure
  *	recomputes various geometry information used in displaying the
@@ -276,7 +276,7 @@ TkpDisplayScrollbar(
  */
 
 extern void
-TkpComputeScrollbarGeometry(
+TkUnixComputeScrollbarGeometry(
     TkScrollbar *scrollPtr)
 				/* Scrollbar whose geometry may have
 				 * changed. */
@@ -347,7 +347,7 @@ TkpComputeScrollbarGeometry(
 /*
  *----------------------------------------------------------------------
  *
- * TkpDestroyScrollbar --
+ * TkUnixDestroyScrollbar --
  *
  *	Free data structures associated with the scrollbar control.
  *
@@ -361,7 +361,7 @@ TkpComputeScrollbarGeometry(
  */
 
 void
-TkpDestroyScrollbar(
+TkUnixDestroyScrollbar(
     TkScrollbar *scrollPtr)
 {
     UnixScrollbar *unixScrollPtr = (UnixScrollbar *)scrollPtr;
@@ -377,7 +377,7 @@ TkpDestroyScrollbar(
 /*
  *----------------------------------------------------------------------
  *
- * TkpConfigureScrollbar --
+ * TkUnixConfigureScrollbar --
  *
  *	This procedure is called after the generic code has finished
  *	processing configuration options, in order to configure platform
@@ -393,7 +393,7 @@ TkpDestroyScrollbar(
  */
 
 void
-TkpConfigureScrollbar(
+TkUnixConfigureScrollbar(
     TkScrollbar *scrollPtr)
 				/* Information about widget; may or may not
 				 * already have values for some fields. */
@@ -420,7 +420,7 @@ TkpConfigureScrollbar(
 /*
  *--------------------------------------------------------------
  *
- * TkpScrollbarPosition --
+ * TkUnixScrollbarPosition --
  *
  *	Determine the scrollbar element corresponding to a given position.
  *
@@ -436,7 +436,7 @@ TkpConfigureScrollbar(
  */
 
 int
-TkpScrollbarPosition(
+TkUnixScrollbarPosition(
     TkScrollbar *scrollPtr,
 				/* Scrollbar widget record. */
     int x, int y)		/* Coordinates within scrollPtr's window. */

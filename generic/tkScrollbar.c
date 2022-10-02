@@ -102,6 +102,11 @@ static int		ConfigureScrollbar(Tcl_Interp *interp,
 static void		ScrollbarCmdDeletedProc(ClientData clientData);
 static int		ScrollbarWidgetObjCmd(ClientData clientData,
 			    Tcl_Interp *, int objc, Tcl_Obj *const objv[]);
+static int		UnixConfigureScrollbar(Tcl_Interp *interp,
+			    TkScrollbar *scrollPtr, int objc,
+			    Tcl_Obj *const objv[], int flags);
+static int		UnixScrollbarWidgetObjCmd(ClientData clientData,
+			    Tcl_Interp *, int objc, Tcl_Obj *const objv[]);
 
 /*
  *--------------------------------------------------------------
@@ -120,8 +125,9 @@ static int		ScrollbarWidgetObjCmd(ClientData clientData,
  *--------------------------------------------------------------
  */
 
-int
-Tk_ScrollbarObjCmd(
+static int
+DoScrollbarObjCmd(
+    int isUnixScrollbar,
     ClientData clientData,	/* Main window associated with interpreter. */
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
@@ -142,9 +148,11 @@ Tk_ScrollbarObjCmd(
     }
 
     Tk_SetClass(newWin, "Scrollbar");
-    scrollPtr = TkpCreateScrollbar(newWin);
+    scrollPtr = (isUnixScrollbar ? TkUnixCreateScrollbar : TkpCreateScrollbar)(newWin);
 
-    Tk_SetClassProcs(newWin, &tkpScrollbarProcs, scrollPtr);
+    Tk_SetClassProcs(newWin,
+	    isUnixScrollbar ? &tkUnixScrollbarProcs : &tkpScrollbarProcs,
+	    scrollPtr);
 
     /*
      * Initialize fields that won't be initialized by ConfigureScrollbar, or
@@ -156,7 +164,8 @@ Tk_ScrollbarObjCmd(
     scrollPtr->display = Tk_Display(newWin);
     scrollPtr->interp = interp;
     scrollPtr->widgetCmd = Tcl_CreateObjCommand(interp,
-	    Tk_PathName(scrollPtr->tkwin), ScrollbarWidgetObjCmd,
+	    Tk_PathName(scrollPtr->tkwin),
+	    isUnixScrollbar ? UnixScrollbarWidgetObjCmd : ScrollbarWidgetObjCmd,
 	    scrollPtr, ScrollbarCmdDeletedProc);
     scrollPtr->vertical = 0;
     scrollPtr->width = 0;
@@ -189,13 +198,32 @@ Tk_ScrollbarObjCmd(
     scrollPtr->takeFocus = NULL;
     scrollPtr->flags = 0;
 
-    if (ConfigureScrollbar(interp, scrollPtr, objc-2, objv+2, 0) != TCL_OK) {
+    if ((isUnixScrollbar ? UnixConfigureScrollbar : ConfigureScrollbar)(
+	    interp, scrollPtr, objc-2, objv+2, 0) != TCL_OK) {
 	Tk_DestroyWindow(scrollPtr->tkwin);
 	return TCL_ERROR;
     }
 
     Tcl_SetObjResult(interp, TkNewWindowObj(scrollPtr->tkwin));
     return TCL_OK;
+}
+int
+Tk_ScrollbarObjCmd(
+    ClientData clientData,	/* Main window associated with interpreter. */
+    Tcl_Interp *interp,		/* Current interpreter. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj *const objv[])	/* Argument strings. */
+{
+    return DoScrollbarObjCmd(0, clientData, interp, objc, objv);
+}
+int
+TkUnixScrollbarObjCmd(
+    ClientData clientData,	/* Main window associated with interpreter. */
+    Tcl_Interp *interp,		/* Current interpreter. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj *const objv[])	/* Argument strings. */
+{
+    return DoScrollbarObjCmd(1, clientData, interp, objc, objv);
 }
 
 /*
@@ -217,7 +245,8 @@ Tk_ScrollbarObjCmd(
  */
 
 static int
-ScrollbarWidgetObjCmd(
+DoScrollbarWidgetObjCmd(
+    int isUnixScrollbar,
     ClientData clientData,	/* Information about scrollbar widget. */
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
@@ -281,7 +310,8 @@ ScrollbarWidgetObjCmd(
 	    scrollPtr->activeField = OUTSIDE;
 	}
 	if (oldActiveField != scrollPtr->activeField) {
-	    TkScrollbarEventuallyRedraw(scrollPtr);
+	    (isUnixScrollbar ? TkUnixScrollbarEventuallyRedraw : TkScrollbarEventuallyRedraw)(
+		    scrollPtr);
 	}
 	break;
     }
@@ -302,8 +332,8 @@ ScrollbarWidgetObjCmd(
 	    result = Tk_ConfigureInfo(interp, scrollPtr->tkwin,
 		    configSpecs, (char *) scrollPtr, Tcl_GetString(objv[2]), 0);
 	} else {
-	    result = ConfigureScrollbar(interp, scrollPtr, objc-2,
-		    objv+2, TK_CONFIG_ARGV_ONLY);
+	    result = (isUnixScrollbar ? UnixConfigureScrollbar : ConfigureScrollbar)(
+		    interp, scrollPtr, objc-2, objv+2, TK_CONFIG_ARGV_ONLY);
 	}
 	break;
     }
@@ -402,7 +432,8 @@ ScrollbarWidgetObjCmd(
 		|| (Tcl_GetIntFromObj(interp, objv[3], &y) != TCL_OK)) {
 	    goto error;
 	}
-	switch (TkpScrollbarPosition(scrollPtr, x, y)) {
+	switch ((isUnixScrollbar ? TkUnixScrollbarPosition : TkpScrollbarPosition)(
+		scrollPtr, x, y)) {
 	case TOP_ARROW:		zone = "arrow1";  break;
 	case TOP_GAP:		zone = "trough1"; break;
 	case SLIDER:		zone = "slider";  break;
@@ -483,8 +514,10 @@ ScrollbarWidgetObjCmd(
 			" set totalUnits windowUnits firstUnit lastUnit\"", NULL);
 	    goto error;
 	}
-	TkpComputeScrollbarGeometry(scrollPtr);
-	TkScrollbarEventuallyRedraw(scrollPtr);
+	(isUnixScrollbar ? TkUnixComputeScrollbarGeometry : TkpComputeScrollbarGeometry)(
+		scrollPtr);
+	(isUnixScrollbar ? TkUnixScrollbarEventuallyRedraw : TkScrollbarEventuallyRedraw)(
+		scrollPtr);
 	break;
     }
     }
@@ -496,6 +529,24 @@ ScrollbarWidgetObjCmd(
   error:
     Tcl_Release(scrollPtr);
     return TCL_ERROR;
+}
+static int
+ScrollbarWidgetObjCmd(
+    ClientData clientData,	/* Information about scrollbar widget. */
+    Tcl_Interp *interp,		/* Current interpreter. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj *const objv[])	/* Argument strings. */
+{
+    return DoScrollbarWidgetObjCmd(0, clientData, interp, objc, objv);
+}
+static int
+UnixScrollbarWidgetObjCmd(
+    ClientData clientData,	/* Information about scrollbar widget. */
+    Tcl_Interp *interp,		/* Current interpreter. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj *const objv[])	/* Argument strings. */
+{
+    return DoScrollbarWidgetObjCmd(1, clientData, interp, objc, objv);
 }
 
 /*
@@ -519,7 +570,8 @@ ScrollbarWidgetObjCmd(
  */
 
 static int
-ConfigureScrollbar(
+DoConfigureScrollbar(
+    int isUnixScrollbar,
     Tcl_Interp *interp,		/* Used for error reporting. */
     TkScrollbar *scrollPtr,
 				/* Information about widget; may or may not
@@ -548,7 +600,7 @@ ConfigureScrollbar(
      * Configure platform specific options.
      */
 
-    TkpConfigureScrollbar(scrollPtr);
+    (isUnixScrollbar ? TkUnixConfigureScrollbar : TkpConfigureScrollbar)(scrollPtr);
 
     /*
      * Register the desired geometry for the window (leave enough space for
@@ -556,9 +608,35 @@ ConfigureScrollbar(
      * window, if any). Then arrange for the window to be redisplayed.
      */
 
-    TkpComputeScrollbarGeometry(scrollPtr);
-    TkScrollbarEventuallyRedraw(scrollPtr);
+    (isUnixScrollbar ? TkUnixComputeScrollbarGeometry : TkpComputeScrollbarGeometry)(
+	    scrollPtr);
+    (isUnixScrollbar ? TkUnixScrollbarEventuallyRedraw : TkScrollbarEventuallyRedraw)(
+	    scrollPtr);
     return TCL_OK;
+}
+static int
+ConfigureScrollbar(
+    Tcl_Interp *interp,		/* Used for error reporting. */
+    TkScrollbar *scrollPtr,
+				/* Information about widget; may or may not
+				 * already have values for some fields. */
+    int objc,			/* Number of valid entries in argv. */
+    Tcl_Obj *const objv[],	/* Arguments. */
+    int flags)			/* Flags to pass to Tk_ConfigureWidget. */
+{
+    return DoConfigureScrollbar(0, interp, scrollPtr, objc, objv, flags);
+}
+static int
+UnixConfigureScrollbar(
+    Tcl_Interp *interp,		/* Used for error reporting. */
+    TkScrollbar *scrollPtr,
+				/* Information about widget; may or may not
+				 * already have values for some fields. */
+    int objc,			/* Number of valid entries in argv. */
+    Tcl_Obj *const objv[],	/* Arguments. */
+    int flags)			/* Flags to pass to Tk_ConfigureWidget. */
+{
+    return DoConfigureScrollbar(1, interp, scrollPtr, objc, objv, flags);
 }
 
 /*
@@ -579,24 +657,28 @@ ConfigureScrollbar(
  *--------------------------------------------------------------
  */
 
-void
-TkScrollbarEventProc(
+static void
+DoScrollbarEventProc(
+    int isUnixScrollbar,
     ClientData clientData,	/* Information about window. */
     XEvent *eventPtr)		/* Information about event. */
 {
     TkScrollbar *scrollPtr = (TkScrollbar *)clientData;
 
     if ((eventPtr->type == Expose) && (eventPtr->xexpose.count == 0)) {
-	TkScrollbarEventuallyRedraw(scrollPtr);
+	(isUnixScrollbar ? TkUnixScrollbarEventuallyRedraw : TkScrollbarEventuallyRedraw)(
+		scrollPtr);
     } else if (eventPtr->type == DestroyNotify) {
-	TkpDestroyScrollbar(scrollPtr);
+	(isUnixScrollbar ? TkUnixDestroyScrollbar : TkpDestroyScrollbar)(scrollPtr);
 	if (scrollPtr->tkwin != NULL) {
 	    scrollPtr->tkwin = NULL;
 	    Tcl_DeleteCommandFromToken(scrollPtr->interp,
 		    scrollPtr->widgetCmd);
 	}
 	if (scrollPtr->flags & REDRAW_PENDING) {
-	    Tcl_CancelIdleCall(TkpDisplayScrollbar, scrollPtr);
+	    Tcl_CancelIdleCall(
+		    isUnixScrollbar ? TkUnixDisplayScrollbar : TkpDisplayScrollbar,
+		    scrollPtr);
 	}
 	/*
 	 * Free up all the stuff that requires special handling, then let
@@ -606,25 +688,44 @@ TkScrollbarEventProc(
 	Tk_FreeOptions(configSpecs, (char*) scrollPtr, scrollPtr->display, 0);
 	Tcl_EventuallyFree(scrollPtr, TCL_DYNAMIC);
     } else if (eventPtr->type == ConfigureNotify) {
-	TkpComputeScrollbarGeometry(scrollPtr);
-	TkScrollbarEventuallyRedraw(scrollPtr);
+	(isUnixScrollbar ? TkUnixComputeScrollbarGeometry : TkpComputeScrollbarGeometry)(
+		scrollPtr);
+	(isUnixScrollbar ? TkUnixScrollbarEventuallyRedraw : TkScrollbarEventuallyRedraw)(
+		scrollPtr);
     } else if (eventPtr->type == FocusIn) {
 	if (eventPtr->xfocus.detail != NotifyInferior) {
 	    scrollPtr->flags |= GOT_FOCUS;
 	    if (scrollPtr->highlightWidth > 0) {
-		TkScrollbarEventuallyRedraw(scrollPtr);
+		(isUnixScrollbar ? TkUnixScrollbarEventuallyRedraw : TkScrollbarEventuallyRedraw)(
+			scrollPtr);
 	    }
 	}
     } else if (eventPtr->type == FocusOut) {
 	if (eventPtr->xfocus.detail != NotifyInferior) {
 	    scrollPtr->flags &= ~GOT_FOCUS;
 	    if (scrollPtr->highlightWidth > 0) {
-		TkScrollbarEventuallyRedraw(scrollPtr);
+		(isUnixScrollbar ? TkUnixScrollbarEventuallyRedraw : TkScrollbarEventuallyRedraw)(
+			scrollPtr);
 	    }
 	}
     } else if (eventPtr->type == MapNotify) {
-	TkScrollbarEventuallyRedraw(scrollPtr);
+	(isUnixScrollbar ? TkUnixScrollbarEventuallyRedraw : TkScrollbarEventuallyRedraw)(
+		scrollPtr);
     }
+}
+void
+TkScrollbarEventProc(
+    ClientData clientData,	/* Information about window. */
+    XEvent *eventPtr)		/* Information about event. */
+{
+    DoScrollbarEventProc(0, clientData, eventPtr);
+}
+void
+TkUnixScrollbarEventProc(
+    ClientData clientData,	/* Information about window. */
+    XEvent *eventPtr)		/* Information about event. */
+{
+    DoScrollbarEventProc(1, clientData, eventPtr);
 }
 
 /*
@@ -681,17 +782,32 @@ ScrollbarCmdDeletedProc(
  *--------------------------------------------------------------
  */
 
-void
-TkScrollbarEventuallyRedraw(
+static void
+DoScrollbarEventuallyRedraw(
+    int isUnixScrollbar,
     TkScrollbar *scrollPtr)	/* Information about widget. */
 {
     if ((scrollPtr->tkwin == NULL) || !Tk_IsMapped(scrollPtr->tkwin)) {
 	return;
     }
     if (!(scrollPtr->flags & REDRAW_PENDING)) {
-	Tcl_DoWhenIdle(TkpDisplayScrollbar, scrollPtr);
+	Tcl_DoWhenIdle(
+		isUnixScrollbar ? TkUnixDisplayScrollbar : TkpDisplayScrollbar,
+		scrollPtr);
 	scrollPtr->flags |= REDRAW_PENDING;
     }
+}
+void
+TkScrollbarEventuallyRedraw(
+    TkScrollbar *scrollPtr)	/* Information about widget. */
+{
+    DoScrollbarEventuallyRedraw(0, scrollPtr);
+}
+void
+TkUnixScrollbarEventuallyRedraw(
+    TkScrollbar *scrollPtr)	/* Information about widget. */
+{
+    DoScrollbarEventuallyRedraw(1, scrollPtr);
 }
 
 /*

@@ -1211,6 +1211,9 @@ MODULE_SCOPE int	Tk_ScaleObjCmd(ClientData clientData,
 MODULE_SCOPE int	Tk_ScrollbarObjCmd(ClientData clientData,
 			    Tcl_Interp *interp, int objc,
 			    Tcl_Obj *const objv[]);
+MODULE_SCOPE int	TkUnixScrollbarObjCmd(ClientData clientData,
+			    Tcl_Interp *interp, int objc,
+			    Tcl_Obj *const objv[]);
 MODULE_SCOPE int	Tk_SelectionObjCmd(ClientData clientData,
 			    Tcl_Interp *interp, int objc,
 			    Tcl_Obj *const objv[]);

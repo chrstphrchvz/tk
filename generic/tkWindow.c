@@ -176,6 +176,7 @@ static const TkCmd commands[] = {
     {"::tk::spinbox",	Tk_SpinboxObjCmd,	ISSAFE},
     {"::tk::text",	Tk_TextObjCmd,		PASSMAINWINDOW|ISSAFE},
     {"::tk::toplevel",	Tk_ToplevelObjCmd,	0},
+    {"::tk::unixscrollbar", TkUnixScrollbarObjCmd, PASSMAINWINDOW|ISSAFE},
 
     /*
      * Standard dialog support. Note that the Unix/X11 platform implements

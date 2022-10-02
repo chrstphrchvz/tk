@@ -161,7 +161,12 @@ typedef struct TkScrollbar {
  * and default scrollbar width, for use in configSpec.
  */
 
+#if defined(_WIN32) || defined(MAC_OSX_TK)
 MODULE_SCOPE const Tk_ClassProcs tkpScrollbarProcs;
+#else
+#define tkpScrollbarProcs tkUnixScrollbarProcs
+#endif
+MODULE_SCOPE const Tk_ClassProcs tkUnixScrollbarProcs;
 MODULE_SCOPE char tkDefScrollbarWidth[TCL_INTEGER_SPACE];
 
 /*
@@ -172,12 +177,32 @@ MODULE_SCOPE char tkDefScrollbarWidth[TCL_INTEGER_SPACE];
 MODULE_SCOPE void	TkScrollbarEventProc(ClientData clientData,
 			    XEvent *eventPtr);
 MODULE_SCOPE void	TkScrollbarEventuallyRedraw(TkScrollbar *scrollPtr);
+MODULE_SCOPE void	TkUnixScrollbarEventProc(ClientData clientData,
+			    XEvent *eventPtr);
+MODULE_SCOPE void	TkUnixScrollbarEventuallyRedraw(TkScrollbar *scrollPtr);
+
+#if defined(_WIN32) || defined(MAC_OSX_TK)
 MODULE_SCOPE void	TkpComputeScrollbarGeometry(TkScrollbar *scrollPtr);
 MODULE_SCOPE TkScrollbar *TkpCreateScrollbar(Tk_Window tkwin);
 MODULE_SCOPE void 	TkpDestroyScrollbar(TkScrollbar *scrollPtr);
 MODULE_SCOPE void	TkpDisplayScrollbar(ClientData clientData);
 MODULE_SCOPE void	TkpConfigureScrollbar(TkScrollbar *scrollPtr);
 MODULE_SCOPE int	TkpScrollbarPosition(TkScrollbar *scrollPtr,
+			    int x, int y);
+#else
+#define TkpComputeScrollbarGeometry	TkUnixComputeScrollbarGeometry
+#define TkpCreateScrollbar		TkUnixCreateScrollbar
+#define TkpDestroyScrollbar		TkUnixDestroyScrollbar
+#define TkpDisplayScrollbar		TkUnixDisplayScrollbar
+#define TkpConfigureScrollbar		TkUnixConfigureScrollbar
+#define TkpScrollbarPosition		TkUnixScrollbarPosition
+#endif
+MODULE_SCOPE void	TkUnixComputeScrollbarGeometry(TkScrollbar *scrollPtr);
+MODULE_SCOPE TkScrollbar *TkUnixCreateScrollbar(Tk_Window tkwin);
+MODULE_SCOPE void 	TkUnixDestroyScrollbar(TkScrollbar *scrollPtr);
+MODULE_SCOPE void	TkUnixDisplayScrollbar(ClientData clientData);
+MODULE_SCOPE void	TkUnixConfigureScrollbar(TkScrollbar *scrollPtr);
+MODULE_SCOPE int	TkUnixScrollbarPosition(TkScrollbar *scrollPtr,
 			    int x, int y);
 
 #endif /* _TKSCROLLBAR */
