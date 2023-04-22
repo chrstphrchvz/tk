@@ -1,5 +1,5 @@
 # This file is a Tcl script to test out the default image data format
-# ("list format") implementend in the file tkImgListFormat.c.
+# ("list format") implemented in the file tkImgListFormat.c.
 # It is organized in the standard fashion for Tcl tests.
 #
 # Copyright © 2017 Simon Bachmann
