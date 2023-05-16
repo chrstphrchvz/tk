@@ -2330,7 +2330,7 @@ WmCommandCmd(
     Tcl_Obj *const objv[])	/* Argument objects. */
 {
     WmInfo *wmPtr = winPtr->wmInfoPtr;
-    int len;
+    Tcl_Size len;
 
     if ((objc != 3) && (objc != 4)) {
 	Tcl_WrongNumArgs(interp, 2, objv, "window ?value?");
@@ -6698,7 +6698,6 @@ TkMacOSXMakeRealWindowExist(
 	if (hPtr) {
 	    tabbingId = Tcl_GetHashValue(hPtr);
 	    Tcl_DeleteHashEntry(hPtr);
-	    ckfree(tabbingId);
 	}
 	hPtr = Tcl_FindHashEntry(&pathnameToTabbingMode, Tk_PathName(winPtr));
 	if (hPtr) {
@@ -6763,6 +6762,9 @@ TkMacOSXMakeRealWindowExist(
     [window setTabbingIdentifier: identifier];
     [window setTabbingMode: tabbingMode];
 #endif
+    if (tabbingId) {
+	ckfree(tabbingId);
+    }
     TKContentView *contentView = [[TKContentView alloc]
 				     initWithFrame:NSZeroRect];
     [window setContentView:contentView];
