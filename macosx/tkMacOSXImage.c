@@ -1279,7 +1279,7 @@ TkMacOSXNSImageConfigureModel(
 	newImage = TkMacOSXIconForFileType(source);
 	break;
     default:
-	newImage = NULL;
+	newImage = nil;
 	break;
     }
     [source release];
