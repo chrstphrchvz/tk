@@ -306,7 +306,7 @@ enum {
      */
 
     if ([NSApp tkDragTarget]) {
-	TkWindow *dragPtr = (TkWindow *) [NSApp tkDragTarget];
+	TkWindow *dragPtr = [NSApp tkDragTarget];
 	TKWindow *dragWindow = nil;
 	MacDrawable *topMacWin;
 	if (dragPtr) {
