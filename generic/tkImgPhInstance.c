@@ -82,7 +82,6 @@ TkImgPhotoConfigureInstance(
     PhotoInstance *instancePtr)	/* Instance to reconfigure. */
 {
     PhotoModel *modelPtr = instancePtr->masterPtr;
-    XImage *imagePtr;
     int bitsPerPixel;
     ColorTable *colorTablePtr;
     XRectangle validBox;
@@ -135,6 +134,7 @@ TkImgPhotoConfigureInstance(
 
 	if ((instancePtr->imagePtr == NULL)
 		|| (instancePtr->imagePtr->bits_per_pixel != bitsPerPixel)) {
+	    XImage *imagePtr;
 	    if (instancePtr->imagePtr != NULL) {
 		XDestroyImage(instancePtr->imagePtr);
 	    }
@@ -774,23 +774,20 @@ void
 TkImgPhotoInstanceSetSize(
     PhotoInstance *instancePtr)	/* Instance whose size is to be changed. */
 {
-    PhotoModel *modelPtr;
+    PhotoModel *modelPtr = instancePtr->masterPtr;
     schar *newError, *errSrcPtr, *errDestPtr;
     int h, offset;
     XRectangle validBox;
-    Pixmap newPixmap;
 
-    modelPtr = instancePtr->masterPtr;
     TkClipBox(modelPtr->validRegion, &validBox);
 
     if ((instancePtr->width != modelPtr->width)
 	    || (instancePtr->height != modelPtr->height)
 	    || (instancePtr->pixels == None)) {
-	newPixmap = Tk_GetPixmap(instancePtr->display,
+	Pixmap newPixmap = Tk_GetPixmap(instancePtr->display,
 		RootWindow(instancePtr->display,
 			instancePtr->visualInfo.screen),
-		(modelPtr->width > 0) ? modelPtr->width: 1,
-		(modelPtr->height > 0) ? modelPtr->height: 1,
+		MIN(modelPtr->width, 1), MIN(modelPtr->height, 1),
 		instancePtr->visualInfo.depth);
 	if (!newPixmap) {
 	    Tcl_Panic("Fail to create pixmap with Tk_GetPixmap in TkImgPhotoInstanceSetSize");

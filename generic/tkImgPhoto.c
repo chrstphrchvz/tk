@@ -2225,7 +2225,6 @@ ImgPhotoSetSize(
     int h, offset, pitch;
     unsigned char *srcPtr, *destPtr;
     XRectangle validBox, clipBox;
-    TkRegion clipRegion;
     PhotoInstance *instancePtr;
 
     if (modelPtr->userWidth > 0) {
@@ -2277,11 +2276,11 @@ ImgPhotoSetSize(
     TkClipBox(modelPtr->validRegion, &validBox);
     if ((validBox.x + validBox.width > width)
 	    || (validBox.y + validBox.height > height)) {
+	TkRegion clipRegion = TkCreateRegion();
 	clipBox.x = 0;
 	clipBox.y = 0;
 	clipBox.width = width;
 	clipBox.height = height;
-	clipRegion = TkCreateRegion();
 	TkUnionRectWithRegion(&clipBox, clipRegion, clipRegion);
 	TkIntersectRegion(modelPtr->validRegion, clipRegion,
 		modelPtr->validRegion);
