@@ -162,8 +162,8 @@ struct PhotoMaster {
     unsigned char *pix32;	/* Local storage for 32-bit image. */
     int ditherX, ditherY;	/* Location of first incorrectly dithered
 				 * pixel in image. */
-    TkRegion validRegion;	/* Tk region indicating which parts of the
-				 * image have valid image data. */
+    TkRegion validRegion;	/* If not NULL, Tk region indicating which
+				 * parts of the image have valid image data. */
     PhotoInstance *instancePtr;	/* First in the list of instances associated
 				 * with this model. */
 };
@@ -211,13 +211,19 @@ struct PhotoInstance {
 				 * allocated for image display in windows like
 				 * this one. */
     Pixmap pixels;		/* X pixmap containing dithered image. */
+    Pixmap mask;		/* X bitmap containing alpha mask.
+				 * Must be kept synchronized with .pixels. */
     int width, height;		/* Dimensions of the pixmap. */
     schar *error;		/* Error image, used in dithering. */
     XImage *imagePtr;		/* Image structure for converted pixels. */
+    XImage *maskPtr;		/* Image structure for alpha mask.
+				 * Must be kept synchronized with .imagePtr. */
     XVisualInfo visualInfo;	/* Information about the visual that these
 				 * windows are using. */
     GC gc;			/* Graphics context for writing images to the
 				 * pixmap. */
+    GC maskGC;			/* Graphics context for writing alpha channel
+				 * to the alpha mask bitmap. */
 };
 
 /*

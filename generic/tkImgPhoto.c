@@ -355,7 +355,7 @@ ImgPhotoCreate(
     modelPtr->palette = NULL;
     modelPtr->pix32 = NULL;
     modelPtr->instancePtr = NULL;
-    modelPtr->validRegion = TkCreateRegion();
+    modelPtr->validRegion = NULL; /* Created only when TkPhotoGetValidRegion() is called. */
 
     /*
      * Process configuration options given in the image create command.
@@ -1253,12 +1253,14 @@ ImgPhotoCmd(
 		 * Make pixel transparent.
 		 */
 
-		TkRegion clearRegion = TkCreateRegion();
+		if (modelPtr->validRegion != NULL) {
+			TkRegion clearRegion = TkCreateRegion();
 
-		TkUnionRectWithRegion(&setBox, clearRegion, clearRegion);
-		TkSubtractRegion(modelPtr->validRegion, clearRegion,
-			modelPtr->validRegion);
-		TkDestroyRegion(clearRegion);
+			TkUnionRectWithRegion(&setBox, clearRegion, clearRegion);
+			TkSubtractRegion(modelPtr->validRegion, clearRegion,
+				modelPtr->validRegion);
+			TkDestroyRegion(clearRegion);
+		}
 
 		/*
 		 * Set the alpha value correctly.
@@ -1270,8 +1272,10 @@ ImgPhotoCmd(
 		 * Make pixel opaque.
 		 */
 
-		TkUnionRectWithRegion(&setBox, modelPtr->validRegion,
-			modelPtr->validRegion);
+		if (modelPtr->validRegion != NULL) {
+		    TkUnionRectWithRegion(&setBox, modelPtr->validRegion,
+			    modelPtr->validRegion);
+		}
 		pixelPtr[3] = 255;
 	    }
 
@@ -2224,7 +2228,7 @@ ImgPhotoSetSize(
     unsigned char *newPix32 = NULL;
     int h, offset, pitch;
     unsigned char *srcPtr, *destPtr;
-    XRectangle validBox, clipBox;
+    XRectangle validBox = {0, 0, modelPtr->width, modelPtr->height}, clipBox;
     PhotoInstance *instancePtr;
 
     if (modelPtr->userWidth > 0) {
@@ -2273,19 +2277,24 @@ ImgPhotoSetSize(
      * image size.
      */
 
-    TkClipBox(modelPtr->validRegion, &validBox);
-    if ((validBox.x + validBox.width > width)
-	    || (validBox.y + validBox.height > height)) {
-	TkRegion clipRegion = TkCreateRegion();
-	clipBox.x = 0;
-	clipBox.y = 0;
-	clipBox.width = width;
-	clipBox.height = height;
-	TkUnionRectWithRegion(&clipBox, clipRegion, clipRegion);
-	TkIntersectRegion(modelPtr->validRegion, clipRegion,
-		modelPtr->validRegion);
-	TkDestroyRegion(clipRegion);
+    if (modelPtr->validRegion != NULL) {
 	TkClipBox(modelPtr->validRegion, &validBox);
+	if ((validBox.x + validBox.width > width)
+		|| (validBox.y + validBox.height > height)) {
+	    TkRegion clipRegion = TkCreateRegion();
+	    clipBox.x = 0;
+	    clipBox.y = 0;
+	    clipBox.width = width;
+	    clipBox.height = height;
+	    TkUnionRectWithRegion(&clipBox, clipRegion, clipRegion);
+	    TkIntersectRegion(modelPtr->validRegion, clipRegion,
+		    modelPtr->validRegion);
+	    TkDestroyRegion(clipRegion);
+	    TkClipBox(modelPtr->validRegion, &validBox);
+	}
+    } else {
+	if (validBox.width > width) validBox.width = width;
+	if (validBox.height > height) validBox.height = height;
     }
 
     /*
@@ -2868,6 +2877,9 @@ Tk_PhotoPutBlock(
 	 * directly to the point when we recompute the photo validity region.
 	 */
 
+	if (modelPtr->validRegion == NULL) {
+	    goto noValidRegion;
+	}
 	goto recalculateValidRegion;
     }
 
@@ -3004,7 +3016,9 @@ Tk_PhotoPutBlock(
      * Add this new block to the region which specifies which data is valid.
      */
 
-    if (alphaOffset) {
+    if (modelPtr->validRegion == NULL) {
+	/* Do nothing */
+    } else if (alphaOffset) {
 	/*
 	 * This block is grossly inefficient. For each row in the image, it
 	 * finds each contiguous string of nontransparent pixels, then marks
@@ -3061,6 +3075,8 @@ Tk_PhotoPutBlock(
 	TkUnionRectWithRegion(&rect, modelPtr->validRegion,
 		modelPtr->validRegion);
     }
+
+noValidRegion:
 
     /*
      * Check if display code needs alpha blending...
@@ -3393,7 +3409,9 @@ Tk_PhotoPutZoomedBlock(
      * Recompute the region of data for which we have valid pixels to plot.
      */
 
-    if (alphaOffset) {
+    if (modelPtr->validRegion == NULL) {
+	/* Do nothing */
+    } else if (alphaOffset) {
 	if (compRule != TK_PHOTO_COMPOSITE_OVERLAY) {
 	    /*
 	     * Don't need this when using the OVERLAY compositing rule, which
@@ -3590,8 +3608,8 @@ Tk_PhotoBlank(
 
     if (modelPtr->validRegion != NULL) {
 	TkDestroyRegion(modelPtr->validRegion);
+	modelPtr->validRegion = TkCreateRegion();
     }
-    modelPtr->validRegion = TkCreateRegion();
 
     /*
      * Clear out the 32-bit pixel storage array. Clear out the dithering error
@@ -3749,6 +3767,10 @@ Tk_PhotoSetSize(
  *	valid data. Or, conversely, the part of the photo which is
  *	transparent.
  *
+ *	WARNING: for performance (see bug [919066]), the valid region is not
+ *	computed until this function is called. Calling this function causes
+ *	the region to be kept and maintained in case of future calls.
+ *
  * Results:
  *	A TkRegion value that indicates the current area of the photo that is
  *	valid. This value should not be used after any modification to the
@@ -3766,6 +3788,13 @@ TkPhotoGetValidRegion(
 				 * to obtained. */
 {
     PhotoModel *modelPtr = (PhotoModel *) handle;
+
+    if (modelPtr->validRegion == NULL) {
+	modelPtr->validRegion = TkCreateRegion();
+	TkpBuildRegionFromAlphaData(modelPtr->validRegion, 0, 0,
+		modelPtr->width, modelPtr->height,
+		&modelPtr->pix32[3], 4, (unsigned) modelPtr->width * 4);
+    }
 
     return modelPtr->validRegion;
 }
