@@ -792,7 +792,9 @@ TkImgPhotoInstanceSetSize(
     PhotoModel *modelPtr = instancePtr->masterPtr;
     schar *newError, *errSrcPtr, *errDestPtr;
     int h, offset;
-    XRectangle validBox = {0, 0, modelPtr->width, modelPtr->height};
+    XRectangle validBox = {0, 0,
+	    MIN(modelPtr->width, instancePtr->width),
+	    MIN(modelPtr->height, instancePtr->height)};
 
     if (modelPtr->validRegion != NULL) TkClipBox(modelPtr->validRegion, &validBox);
 
