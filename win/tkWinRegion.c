@@ -318,6 +318,16 @@ XUnionRegion(
     return 1;
 }
 
+int
+XOffsetRegion(
+    Region r,
+    int dx,
+    int dy)
+{
+    OffsetRgn((HRGN)r, dx, dy);
+    return 1;
+}
+
 /*
  * Local Variables:
  * mode: c

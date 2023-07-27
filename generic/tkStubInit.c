@@ -105,7 +105,6 @@ TkCreateXEventSource(void)
 #   define TkUnixDoOneXEvent 0
 #   define TkUnixSetMenubar 0
 #   define XCreateWindow 0
-#   define XOffsetRegion 0
 #   define TkWmCleanup (void (*)(TkDisplay *)) TkpSync
 #   define TkSendCleanup (void (*)(TkDisplay *)) TkpSync
 #   define TkpTestsendCmd 0

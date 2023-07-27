@@ -611,16 +611,3 @@ XVisualIDFromVisual(
 {
     return visual->visualid;
 }
-
-int
-XOffsetRegion(
-    Region rgn,
-	int dx,
-	int dy)
-{
-    (void)rgn;
-    (void)dx;
-    (void)dy;
-
-	return 0;
-}
