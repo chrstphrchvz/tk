@@ -106,7 +106,6 @@ TkCreateXEventSource(void)
 #   define TkUnixSetMenubar 0
 #   define XCreateWindow 0
 #   define XOffsetRegion 0
-#   define XUnionRegion 0
 #   define TkWmCleanup (void (*)(TkDisplay *)) TkpSync
 #   define TkSendCleanup (void (*)(TkDisplay *)) TkpSync
 #   define TkpTestsendCmd 0
@@ -971,7 +970,7 @@ static const TkIntXlibStubs tkIntXlibStubs = {
     0, /* 118 */
     0, /* 119 */
     XOffsetRegion, /* 120 */
-    0, /* 121 */
+    XUnionRegion, /* 121 */
     0, /* 122 */
     0, /* 123 */
     0, /* 124 */

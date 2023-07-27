@@ -768,19 +768,6 @@ XPointInRegion(
 	return 0;
 }
 
-int
-XUnionRegion(
-    Region srca,
-	Region srcb,
-	Region dr_return)
-{
-    (void)srca;
-    (void)srcb;
-    (void)dr_return;
-
-	return 0;
-}
-
 Region
 XPolygonRegion(
     XPoint *pts,

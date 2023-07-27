@@ -523,6 +523,17 @@ TkMacOSHIShapeDifferenceWithRect(
     return result;
 }
 
+int
+XUnionRegion(
+    void *srca,
+    void *srcb,
+    void *dr_return)
+{
+    ChkErr(HIShapeUnion, (HIShapeRef)srca, (HIShapeRef)srcb,
+	    (HIMutableShapeRef)dr_return);
+    return 1;
+}
+
 static OSStatus
 rectCounter(
     int msg,

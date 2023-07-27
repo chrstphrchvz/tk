@@ -308,6 +308,16 @@ TkpCopyRegion(
     CombineRgn((HRGN)dst, (HRGN)src, NULL, RGN_COPY);
 }
 
+int
+XUnionRegion(
+    Region srca,
+    Region srcb,
+    Region dr_return)
+{
+    CombineRgn((HRGN)dr_return, (HRGN)srca, (HRGN)srcb, RGN_OR);
+    return 1;
+}
+
 /*
  * Local Variables:
  * mode: c

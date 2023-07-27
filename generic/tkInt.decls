@@ -1854,6 +1854,9 @@ declare 114 aqua {
 declare 120 aqua {
     int XOffsetRegion(void *rgn, int dx, int dy)
 }
+declare 121 macosx {
+    int XUnionRegion(void *srca, void *srcb, void *dr_return)
+}
 declare 129 aqua {
     int XLowerWindow(Display *d, Window w)
 }

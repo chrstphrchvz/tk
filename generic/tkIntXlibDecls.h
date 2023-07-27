@@ -742,7 +742,8 @@ EXTERN VisualID		XVisualIDFromVisual(Visual *visual);
 /* Slot 119 is reserved */
 /* 120 */
 EXTERN int		XOffsetRegion(void *rgn, int dx, int dy);
-/* Slot 121 is reserved */
+/* 121 */
+EXTERN int		XUnionRegion(void *srca, void *srcb, void *dr_return);
 /* Slot 122 is reserved */
 /* Slot 123 is reserved */
 /* Slot 124 is reserved */
@@ -1083,7 +1084,7 @@ typedef struct TkIntXlibStubs {
     void (*reserved118)(void);
     void (*reserved119)(void);
     int (*xOffsetRegion) (void *rgn, int dx, int dy); /* 120 */
-    void (*reserved121)(void);
+    int (*xUnionRegion) (void *srca, void *srcb, void *dr_return); /* 121 */
     void (*reserved122)(void);
     void (*reserved123)(void);
     void (*reserved124)(void);
@@ -1648,7 +1649,8 @@ extern const TkIntXlibStubs *tkIntXlibStubsPtr;
 /* Slot 119 is reserved */
 #define XOffsetRegion \
 	(tkIntXlibStubsPtr->xOffsetRegion) /* 120 */
-/* Slot 121 is reserved */
+#define XUnionRegion \
+	(tkIntXlibStubsPtr->xUnionRegion) /* 121 */
 /* Slot 122 is reserved */
 /* Slot 123 is reserved */
 /* Slot 124 is reserved */
