@@ -826,7 +826,7 @@ static const TkIntXlibStubs tkIntXlibStubs = {
     XReparentWindow, /* 136 */
     XPutImage, /* 137 */
     0, /* 138 */
-    0, /* 139 */
+    XPointInRegion, /* 139 */
     0, /* 140 */
     0, /* 141 */
     0, /* 142 */
@@ -987,7 +987,7 @@ static const TkIntXlibStubs tkIntXlibStubs = {
     0, /* 136 */
     XPutImage, /* 137 */
     0, /* 138 */
-    0, /* 139 */
+    XPointInRegion, /* 139 */
     0, /* 140 */
     0, /* 141 */
     0, /* 142 */

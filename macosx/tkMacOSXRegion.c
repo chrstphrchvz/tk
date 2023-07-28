@@ -534,6 +534,16 @@ XUnionRegion(
     return 1;
 }
 
+Bool
+XPointInRegion(
+    void *rgn,
+    int x,
+    int y)
+{
+    CGPoint p = CGPointMake(x, y);
+    return HIShapeContainsPoint((HIShapeRef)rgn, &p);
+}
+
 static OSStatus
 rectCounter(
     int msg,

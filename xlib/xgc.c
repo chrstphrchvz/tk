@@ -755,19 +755,6 @@ XCreateWindow(
 	return 0;
 }
 
-int
-XPointInRegion(
-    Region rgn,
-	int x,
-	int y)
-{
-    (void)rgn;
-    (void)x;
-    (void)y;
-
-	return 0;
-}
-
 Region
 XPolygonRegion(
     XPoint *pts,

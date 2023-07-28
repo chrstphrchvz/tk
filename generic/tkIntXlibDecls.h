@@ -25,9 +25,14 @@
 
 /* Some (older) versions of X11/Xutil.h have a wrong signature of those
    two functions, so move them out of the way temporarly. */
+/* CAC: Some old Xutil.h did declare functions returning void instead of int,
+   but the current problem is the conflict between EXTERN and extern.
+   Can [4a3ec663] be backported? */
+#define XPointInRegion _XPointInRegion
 #define XOffsetRegion _XOffsetRegion
 #define XUnionRegion _XUnionRegion
 #include "X11/Xutil.h"
+#undef XPointInRegion
 #undef XOffsetRegion
 #undef XUnionRegion
 
@@ -417,7 +422,8 @@ EXTERN int		XPutImage(Display *d, Drawable dr, GC gc, XImage *im,
 				int sx, int sy, int dx, int dy,
 				unsigned int w, unsigned int h);
 /* Slot 138 is reserved */
-/* Slot 139 is reserved */
+/* 139 */
+EXTERN Bool		XPointInRegion(Region rgn, int x, int y);
 /* Slot 140 is reserved */
 /* Slot 141 is reserved */
 /* Slot 142 is reserved */
@@ -765,7 +771,8 @@ EXTERN int		XPutImage(Display *d, Drawable dr, GC gc, XImage *im,
 				int sx, int sy, int dx, int dy,
 				unsigned int w, unsigned int h);
 /* Slot 138 is reserved */
-/* Slot 139 is reserved */
+/* 139 */
+EXTERN Bool		XPointInRegion(void *rgn, int x, int y);
 /* Slot 140 is reserved */
 /* Slot 141 is reserved */
 /* Slot 142 is reserved */
@@ -941,7 +948,7 @@ typedef struct TkIntXlibStubs {
     int (*xReparentWindow) (Display *d, Window w, Window p, int x, int y); /* 136 */
     int (*xPutImage) (Display *d, Drawable dr, GC gc, XImage *im, int sx, int sy, int dx, int dy, unsigned int w, unsigned int h); /* 137 */
     void (*reserved138)(void);
-    void (*reserved139)(void);
+    Bool (*xPointInRegion) (Region rgn, int x, int y); /* 139 */
     void (*reserved140)(void);
     void (*reserved141)(void);
     void (*reserved142)(void);
@@ -1102,7 +1109,7 @@ typedef struct TkIntXlibStubs {
     void (*reserved136)(void);
     int (*xPutImage) (Display *d, Drawable dr, GC gc, XImage *im, int sx, int sy, int dx, int dy, unsigned int w, unsigned int h); /* 137 */
     void (*reserved138)(void);
-    void (*reserved139)(void);
+    Bool (*xPointInRegion) (void *rgn, int x, int y); /* 139 */
     void (*reserved140)(void);
     void (*reserved141)(void);
     void (*reserved142)(void);
@@ -1404,7 +1411,8 @@ extern const TkIntXlibStubs *tkIntXlibStubsPtr;
 #define XPutImage \
 	(tkIntXlibStubsPtr->xPutImage) /* 137 */
 /* Slot 138 is reserved */
-/* Slot 139 is reserved */
+#define XPointInRegion \
+	(tkIntXlibStubsPtr->xPointInRegion) /* 139 */
 /* Slot 140 is reserved */
 /* Slot 141 is reserved */
 /* Slot 142 is reserved */
@@ -1670,7 +1678,8 @@ extern const TkIntXlibStubs *tkIntXlibStubsPtr;
 #define XPutImage \
 	(tkIntXlibStubsPtr->xPutImage) /* 137 */
 /* Slot 138 is reserved */
-/* Slot 139 is reserved */
+#define XPointInRegion \
+	(tkIntXlibStubsPtr->xPointInRegion) /* 139 */
 /* Slot 140 is reserved */
 /* Slot 141 is reserved */
 /* Slot 142 is reserved */

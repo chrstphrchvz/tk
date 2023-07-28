@@ -328,6 +328,15 @@ XOffsetRegion(
     return 1;
 }
 
+Bool
+XPointInRegion(
+    Region r,
+    int x,
+    int y)
+{
+    return PtInRegion((HRGN)r, x, y);
+}
+
 /*
  * Local Variables:
  * mode: c

@@ -1500,6 +1500,9 @@ declare 137 win {
 	    int sx, int sy, int dx, int dy,
 	    unsigned int w, unsigned int h)
 }
+declare 139 win {
+    Bool XPointInRegion(Region rgn, int x, int y)
+}
 declare 158 win {
     void TkUnusedStubEntry(void)
 }
@@ -1864,6 +1867,9 @@ declare 137 aqua {
     int XPutImage(Display *d, Drawable dr, GC gc, XImage *im,
 	    int sx, int sy, int dx, int dy,
 	    unsigned int w, unsigned int h)
+}
+declare 139 macosx {
+    Bool XPointInRegion(void *rgn, int x, int y)
 }
 declare 144 aqua {
     void XDestroyIC(XIC xic)
