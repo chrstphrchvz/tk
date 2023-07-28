@@ -337,6 +337,16 @@ XPointInRegion(
     return PtInRegion((HRGN)r, x, y);
 }
 
+int
+XXorRegion(
+    Region sra,
+    Region srb,
+    Region dr_return)
+{
+    CombineRgn((HRGN)dr_return, (HRGN)sra, (HRGN)srb, RGN_XOR);
+    return 0;
+}
+
 /*
  * Local Variables:
  * mode: c

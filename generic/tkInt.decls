@@ -1506,6 +1506,9 @@ declare 139 win {
 declare 158 win {
     void TkUnusedStubEntry(void)
 }
+declare 159 win {
+    int XXorRegion(Region sra, Region srb, Region dr_return)
+}
 
 ################################
 # X functions for Aqua
@@ -1888,6 +1891,9 @@ declare 157 aqua {
 }
 declare 158 aqua {
     void TkUnusedStubEntry(void)
+}
+declare 159 aqua {
+    int XXorRegion(void *sra, void *srb, void *dr_return)
 }
 
 # Local Variables:

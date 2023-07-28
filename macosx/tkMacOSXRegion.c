@@ -534,6 +534,17 @@ XUnionRegion(
     return 1;
 }
 
+int
+XXorRegion(
+    void *sra,
+    void *srb,
+    void *dr_return)
+{
+    ChkErr(HIShapeXor, (HIShapeRef)sra, (HIShapeRef)srb,
+	    (HIMutableShapeRef)dr_return);
+    return 0;
+}
+
 Bool
 XPointInRegion(
     void *rgn,

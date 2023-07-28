@@ -846,6 +846,7 @@ static const TkIntXlibStubs tkIntXlibStubs = {
     0, /* 156 */
     0, /* 157 */
     TkUnusedStubEntry, /* 158 */
+    XXorRegion, /* 159 */
 #endif /* WIN */
 #ifdef MAC_OSX_TK /* AQUA */
     XSetDashes, /* 0 */
@@ -1007,6 +1008,7 @@ static const TkIntXlibStubs tkIntXlibStubs = {
     0, /* 156 */
     XkbKeycodeToKeysym, /* 157 */
     TkUnusedStubEntry, /* 158 */
+    XXorRegion, /* 159 */
 #endif /* AQUA */
 };
 

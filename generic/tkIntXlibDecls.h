@@ -29,9 +29,11 @@
    but the current problem is the conflict between EXTERN and extern.
    Can [4a3ec663] be backported? */
 #define XPointInRegion _XPointInRegion
+#define XXorRegion _XXorRegion
 #define XOffsetRegion _XOffsetRegion
 #define XUnionRegion _XUnionRegion
 #include "X11/Xutil.h"
+#undef XXorRegion
 #undef XPointInRegion
 #undef XOffsetRegion
 #undef XUnionRegion
@@ -444,6 +446,8 @@ EXTERN Bool		XPointInRegion(Region rgn, int x, int y);
 /* Slot 157 is reserved */
 /* 158 */
 EXTERN void		TkUnusedStubEntry(void);
+/* 159 */
+EXTERN int		XXorRegion(Region sra, Region srb, Region dr_return);
 #endif /* WIN */
 #ifdef MAC_OSX_TK /* AQUA */
 /* 0 */
@@ -802,6 +806,8 @@ EXTERN KeySym		XkbKeycodeToKeysym(Display *d, unsigned int k, int g,
 				int i);
 /* 158 */
 EXTERN void		TkUnusedStubEntry(void);
+/* 159 */
+EXTERN int		XXorRegion(void *sra, void *srb, void *dr_return);
 #endif /* AQUA */
 
 typedef struct TkIntXlibStubs {
@@ -968,6 +974,7 @@ typedef struct TkIntXlibStubs {
     void (*reserved156)(void);
     void (*reserved157)(void);
     void (*tkUnusedStubEntry) (void); /* 158 */
+    int (*xXorRegion) (Region sra, Region srb, Region dr_return); /* 159 */
 #endif /* WIN */
 #ifdef MAC_OSX_TK /* AQUA */
     int (*xSetDashes) (Display *display, GC gc, int dash_offset, _Xconst char *dash_list, int n); /* 0 */
@@ -1129,6 +1136,7 @@ typedef struct TkIntXlibStubs {
     void (*reserved156)(void);
     KeySym (*xkbKeycodeToKeysym) (Display *d, unsigned int k, int g, int i); /* 157 */
     void (*tkUnusedStubEntry) (void); /* 158 */
+    int (*xXorRegion) (void *sra, void *srb, void *dr_return); /* 159 */
 #endif /* AQUA */
 } TkIntXlibStubs;
 
@@ -1433,6 +1441,8 @@ extern const TkIntXlibStubs *tkIntXlibStubsPtr;
 /* Slot 157 is reserved */
 #define TkUnusedStubEntry \
 	(tkIntXlibStubsPtr->tkUnusedStubEntry) /* 158 */
+#define XXorRegion \
+	(tkIntXlibStubsPtr->xXorRegion) /* 159 */
 #endif /* WIN */
 #ifdef MAC_OSX_TK /* AQUA */
 #define XSetDashes \
@@ -1704,6 +1714,8 @@ extern const TkIntXlibStubs *tkIntXlibStubsPtr;
 	(tkIntXlibStubsPtr->xkbKeycodeToKeysym) /* 157 */
 #define TkUnusedStubEntry \
 	(tkIntXlibStubsPtr->tkUnusedStubEntry) /* 158 */
+#define XXorRegion \
+	(tkIntXlibStubsPtr->xXorRegion) /* 159 */
 #endif /* AQUA */
 
 #endif /* defined(USE_TK_STUBS) */
