@@ -337,6 +337,14 @@ XPointInRegion(
     return PtInRegion((HRGN)r, x, y);
 }
 
+Bool
+XEqualRegion(
+    Region r1,
+    Region r2)
+{
+    return EqualRgn((HRGN)r1, (HRGN)r2);
+}
+
 int
 XXorRegion(
     Region sra,

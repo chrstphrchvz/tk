@@ -32,7 +32,9 @@
 #define XXorRegion _XXorRegion
 #define XOffsetRegion _XOffsetRegion
 #define XUnionRegion _XUnionRegion
+#define XEqualRegion _XEqualRegion
 #include "X11/Xutil.h"
+#undef XEqualRegion
 #undef XXorRegion
 #undef XPointInRegion
 #undef XOffsetRegion
@@ -448,6 +450,8 @@ EXTERN Bool		XPointInRegion(Region rgn, int x, int y);
 EXTERN void		TkUnusedStubEntry(void);
 /* 159 */
 EXTERN int		XXorRegion(Region sra, Region srb, Region dr_return);
+/* 160 */
+EXTERN Bool		XEqualRegion(Region r1, Region r2);
 #endif /* WIN */
 #ifdef MAC_OSX_TK /* AQUA */
 /* 0 */
@@ -808,6 +812,8 @@ EXTERN KeySym		XkbKeycodeToKeysym(Display *d, unsigned int k, int g,
 EXTERN void		TkUnusedStubEntry(void);
 /* 159 */
 EXTERN int		XXorRegion(void *sra, void *srb, void *dr_return);
+/* 160 */
+EXTERN Bool		XEqualRegion(void *r1, void *r2);
 #endif /* AQUA */
 
 typedef struct TkIntXlibStubs {
@@ -975,6 +981,7 @@ typedef struct TkIntXlibStubs {
     void (*reserved157)(void);
     void (*tkUnusedStubEntry) (void); /* 158 */
     int (*xXorRegion) (Region sra, Region srb, Region dr_return); /* 159 */
+    Bool (*xEqualRegion) (Region r1, Region r2); /* 160 */
 #endif /* WIN */
 #ifdef MAC_OSX_TK /* AQUA */
     int (*xSetDashes) (Display *display, GC gc, int dash_offset, _Xconst char *dash_list, int n); /* 0 */
@@ -1137,6 +1144,7 @@ typedef struct TkIntXlibStubs {
     KeySym (*xkbKeycodeToKeysym) (Display *d, unsigned int k, int g, int i); /* 157 */
     void (*tkUnusedStubEntry) (void); /* 158 */
     int (*xXorRegion) (void *sra, void *srb, void *dr_return); /* 159 */
+    Bool (*xEqualRegion) (void *r1, void *r2); /* 160 */
 #endif /* AQUA */
 } TkIntXlibStubs;
 
@@ -1443,6 +1451,8 @@ extern const TkIntXlibStubs *tkIntXlibStubsPtr;
 	(tkIntXlibStubsPtr->tkUnusedStubEntry) /* 158 */
 #define XXorRegion \
 	(tkIntXlibStubsPtr->xXorRegion) /* 159 */
+#define XEqualRegion \
+	(tkIntXlibStubsPtr->xEqualRegion) /* 160 */
 #endif /* WIN */
 #ifdef MAC_OSX_TK /* AQUA */
 #define XSetDashes \
@@ -1716,6 +1726,8 @@ extern const TkIntXlibStubs *tkIntXlibStubsPtr;
 	(tkIntXlibStubsPtr->tkUnusedStubEntry) /* 158 */
 #define XXorRegion \
 	(tkIntXlibStubsPtr->xXorRegion) /* 159 */
+#define XEqualRegion \
+	(tkIntXlibStubsPtr->xEqualRegion) /* 160 */
 #endif /* AQUA */
 
 #endif /* defined(USE_TK_STUBS) */

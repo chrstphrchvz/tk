@@ -1509,6 +1509,9 @@ declare 158 win {
 declare 159 win {
     int XXorRegion(Region sra, Region srb, Region dr_return)
 }
+declare 160 win {
+    Bool XEqualRegion(Region r1, Region r2)
+}
 
 ################################
 # X functions for Aqua
@@ -1894,6 +1897,9 @@ declare 158 aqua {
 }
 declare 159 aqua {
     int XXorRegion(void *sra, void *srb, void *dr_return)
+}
+declare 160 aqua {
+    Bool XEqualRegion(void *r1, void *r2)
 }
 
 # Local Variables:

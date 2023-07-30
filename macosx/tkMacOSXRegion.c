@@ -523,6 +523,42 @@ TkMacOSHIShapeDifferenceWithRect(
     return result;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * XEqualRegion --
+ *
+ *	Although the undocumented function
+ *
+ *	    Boolean __attribute__((overloadable))
+ *	    __HIShapeEqual(void const *inShape1, void const *inShape2)
+ *
+ *	is probably more optimal than the approach used here,
+ *	it is "non-external" and so not easily usable by Tk Aqua.
+ *
+ *----------------------------------------------------------------------
+ */
+Bool
+XEqualRegion(
+    void *srca,
+    void *srcb)
+{
+    HIShapeRef hsa = (HIShapeRef)srca, hsb = (HIShapeRef)srcb;
+    if (hsa == hsb) {
+	return True;
+    }
+    CGRect ba, bb;
+    HIShapeGetBounds(hsa, &ba);
+    HIShapeGetBounds(hsb, &bb);
+    if (!CGRectEqualToRect(ba, bb)) {
+	return False;
+    }
+    HIShapeRef hsx = HIShapeCreateXor(hsa, hsb);
+    Bool result = HIShapeIsEmpty(hsx);
+    CFRelease(hsx);
+    return result;
+}
+
 int
 XUnionRegion(
     void *srca,
