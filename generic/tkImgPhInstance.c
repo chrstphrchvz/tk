@@ -82,10 +82,9 @@ TkImgPhotoConfigureInstance(
     PhotoInstance *instancePtr)	/* Instance to reconfigure. */
 {
     PhotoModel *modelPtr = instancePtr->masterPtr;
-    XImage *imagePtr;
     int bitsPerPixel;
     ColorTable *colorTablePtr;
-    XRectangle validBox;
+    XRectangle validBox = {0, 0, modelPtr->width, modelPtr->height};
 
     /*
      * If the -palette configuration option has been set for the model, use
@@ -135,13 +134,27 @@ TkImgPhotoConfigureInstance(
 
 	if ((instancePtr->imagePtr == NULL)
 		|| (instancePtr->imagePtr->bits_per_pixel != bitsPerPixel)) {
+	    XImage *imagePtr;
+	    XImage *maskPtr = NULL;
 	    if (instancePtr->imagePtr != NULL) {
 		XDestroyImage(instancePtr->imagePtr);
+		XDestroyImage(instancePtr->maskPtr);
 	    }
 	    imagePtr = XCreateImage(instancePtr->display,
 		    instancePtr->visualInfo.visual, (unsigned) bitsPerPixel,
 		    (bitsPerPixel > 1? ZPixmap: XYBitmap), 0, NULL,
 		    1, 1, 32, 0);
+	    if (imagePtr != NULL) {
+		maskPtr = XCreateImage(instancePtr->display,
+			instancePtr->visualInfo.visual, 1u,
+			XYBitmap, 0, NULL, 1, 1, 32, 0);
+		if (maskPtr == NULL) {
+		    XDestroyImage(imagePtr);
+		    imagePtr = NULL;
+		}
+	    }
+	    /* assert((imagePtr == NULL) == (maskPtr == NULL)); */
+	    instancePtr->maskPtr = maskPtr;
 	    instancePtr->imagePtr = imagePtr;
 
 	    /*
@@ -157,6 +170,7 @@ TkImgPhotoConfigureInstance(
 #else
 		imagePtr->byte_order = LSBFirst;
 #endif
+		_XInitImageFuncPtrs(maskPtr);
 		_XInitImageFuncPtrs(imagePtr);
 	    }
 	}
@@ -181,7 +195,7 @@ TkImgPhotoConfigureInstance(
 
     if ((modelPtr->flags & IMAGE_CHANGED)
 	    || (instancePtr->colorTablePtr != colorTablePtr)) {
-	TkClipBox(modelPtr->validRegion, &validBox);
+	if (modelPtr->validRegion != NULL) TkClipBox(modelPtr->validRegion, &validBox);
 	if ((validBox.width > 0) && (validBox.height > 0)) {
 	    TkImgDitherInstance(instancePtr, validBox.x, validBox.y,
 		    validBox.width, validBox.height);
@@ -288,6 +302,8 @@ TkImgPhotoGet(
     instancePtr->refCount = 1;
     instancePtr->colorTablePtr = NULL;
     instancePtr->pixels = None;
+    instancePtr->mask = None;
+    instancePtr->maskGC = NULL;
     instancePtr->error = NULL;
     instancePtr->width = 0;
     instancePtr->height = 0;
@@ -691,8 +707,7 @@ TkImgPhotoDisplay(
 	 */
 
     fallBack:
-	TkSetRegion(display, instancePtr->gc,
-		instancePtr->masterPtr->validRegion);
+	XSetClipMask(display, instancePtr->gc, instancePtr->mask);
 	XSetClipOrigin(display, instancePtr->gc, drawableX - imageX,
 		drawableY - imageY);
 	XCopyArea(display, instancePtr->pixels, drawable, instancePtr->gc,
@@ -774,26 +789,37 @@ void
 TkImgPhotoInstanceSetSize(
     PhotoInstance *instancePtr)	/* Instance whose size is to be changed. */
 {
-    PhotoModel *modelPtr;
+    PhotoModel *modelPtr = instancePtr->masterPtr;
     schar *newError, *errSrcPtr, *errDestPtr;
     int h, offset;
-    XRectangle validBox;
-    Pixmap newPixmap;
+    XRectangle validBox = {0, 0,
+	    MIN(modelPtr->width, instancePtr->width),
+	    MIN(modelPtr->height, instancePtr->height)};
 
-    modelPtr = instancePtr->masterPtr;
-    TkClipBox(modelPtr->validRegion, &validBox);
+    if (modelPtr->validRegion != NULL) TkClipBox(modelPtr->validRegion, &validBox);
 
     if ((instancePtr->width != modelPtr->width)
 	    || (instancePtr->height != modelPtr->height)
 	    || (instancePtr->pixels == None)) {
-	newPixmap = Tk_GetPixmap(instancePtr->display,
+	Pixmap newMask;
+	Pixmap newPixmap = Tk_GetPixmap(instancePtr->display,
 		RootWindow(instancePtr->display,
 			instancePtr->visualInfo.screen),
-		(modelPtr->width > 0) ? modelPtr->width: 1,
-		(modelPtr->height > 0) ? modelPtr->height: 1,
+		MIN(modelPtr->width, 1), MIN(modelPtr->height, 1),
 		instancePtr->visualInfo.depth);
 	if (!newPixmap) {
 	    Tcl_Panic("Fail to create pixmap with Tk_GetPixmap in TkImgPhotoInstanceSetSize");
+	}
+	newMask = Tk_GetPixmap(instancePtr->display,
+		RootWindow(instancePtr->display,
+			instancePtr->visualInfo.screen),
+		MIN(modelPtr->width, 1), MIN(modelPtr->height, 1), 1);
+	if (!newMask) {
+	    Tcl_Panic("Fail to create mask with Tk_GetPixmap in TkImgPhotoInstanceSetSize");
+	}
+	if (instancePtr->maskGC == NULL) {
+	    instancePtr->maskGC = XCreateGC(instancePtr->display,
+		    newMask, 0ul, NULL);
 	}
 
 	/*
@@ -816,7 +842,12 @@ TkImgPhotoInstanceSetSize(
 		    instancePtr->gc, validBox.x, validBox.y,
 		    validBox.width, validBox.height, validBox.x, validBox.y);
 	    Tk_FreePixmap(instancePtr->display, instancePtr->pixels);
+	    XCopyArea(instancePtr->display, instancePtr->mask, newMask,
+		    instancePtr->maskGC, validBox.x, validBox.y,
+		    validBox.width, validBox.height, validBox.x, validBox.y);
+	    Tk_FreePixmap(instancePtr->display, instancePtr->mask);
 	}
+	instancePtr->mask = newMask;
 	instancePtr->pixels = newPixmap;
     }
 
@@ -1590,11 +1621,16 @@ TkImgDisposeInstance(
 
     if (instancePtr->pixels != None) {
 	Tk_FreePixmap(instancePtr->display, instancePtr->pixels);
+	Tk_FreePixmap(instancePtr->display, instancePtr->mask);
+    }
+    if (instancePtr->maskGC != NULL) {
+	XFreeGC(instancePtr->display, instancePtr->maskGC);
     }
     if (instancePtr->gc != NULL) {
 	Tk_FreeGC(instancePtr->display, instancePtr->gc);
     }
     if (instancePtr->imagePtr != NULL) {
+	XDestroyImage(instancePtr->maskPtr);
 	XDestroyImage(instancePtr->imagePtr);
     }
     if (instancePtr->error != NULL) {
@@ -1644,6 +1680,7 @@ TkImgDitherInstance(
     PhotoModel *modelPtr = instancePtr->masterPtr;
     ColorTable *colorPtr = instancePtr->colorTablePtr;
     XImage *imagePtr;
+    XImage *maskPtr;
     int nLines, bigEndian, i, c, x, y, xEnd, doDithering = 1;
     int bitsPerPixel, bytesPerLine, lineLength;
     unsigned char *srcLinePtr;
@@ -1689,12 +1726,17 @@ TkImgDitherInstance(
     imagePtr->width = width;
     imagePtr->height = nLines;
     imagePtr->bytes_per_line = bytesPerLine;
+    maskPtr = instancePtr->maskPtr;
+    maskPtr->width = width;
+    maskPtr->height = nLines;
+    maskPtr->bytes_per_line = ((width + 31) >> 3) & ~3;
 
     /*
      * TODO: use attemptckalloc() here once we have some strategy for
      * recovering from the failure.
      */
 
+    maskPtr->data = ckalloc(maskPtr->bytes_per_line * nLines);
     imagePtr->data = ckalloc(imagePtr->bytes_per_line * nLines);
     bigEndian = imagePtr->bitmap_bit_order == MSBFirst;
     firstBit = bigEndian? (1 << (imagePtr->bitmap_unit - 1)): 1;
@@ -1785,7 +1827,7 @@ TkImgDitherInstance(
 			col[1] = *srcPtr++;
 			col[2] = *srcPtr++;
 		    }
-		    srcPtr++;
+		    XPutPixel(maskPtr, x - xStart, y - yStart, *srcPtr++ == 0);
 
 		    /*
 		     * Translate the quantized component values into an X
@@ -1850,6 +1892,7 @@ TkImgDitherInstance(
 		    } else {
 			c += srcPtr[0];
 		    }
+		    XPutPixel(maskPtr, x - xStart, y - yStart, srcPtr[3] == 0);
 		    srcPtr += 4;
 
 		    if (c < 0) {
@@ -1923,6 +1966,7 @@ TkImgDitherInstance(
 		    } else {
 			c += srcPtr[0];
 		    }
+		    XPutPixel(maskPtr, x - xStart, y - yStart, srcPtr[3] == 0);
 		    srcPtr += 4;
 
 		    if (c < 0) {
@@ -1953,6 +1997,10 @@ TkImgDitherInstance(
 	TkPutImage(colorPtr->pixelMap, colorPtr->numColors,
 		instancePtr->display, instancePtr->pixels,
 		instancePtr->gc, imagePtr, 0, 0, xStart, yStart,
+		(unsigned) width, (unsigned) nLines);
+	TkPutImage(colorPtr->pixelMap, colorPtr->numColors,
+		instancePtr->display, instancePtr->mask,
+		instancePtr->maskGC, maskPtr, 0, 0, xStart, yStart,
 		(unsigned) width, (unsigned) nLines);
 	yStart = yEnd;
     }
