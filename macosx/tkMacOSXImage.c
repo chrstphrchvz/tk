@@ -79,8 +79,20 @@ typedef struct ARGB32pixel_t {
     unsigned alpha: 8;
 } ARGB32pixel;
 
+/*
+ * BGRA32 0xBBGGRRAA (Byte order is BGRA on big-endian systems.)
+ */
+
+typedef struct BGRA32pixel_t {
+    unsigned blue: 8;
+    unsigned green: 8;
+    unsigned red: 8;
+    unsigned alpha: 8;
+} BGRA32pixel;
+
 typedef union pixel32_t {
     unsigned int uint;
+    BGRA32pixel bgra;
     RGBA32pixel rgba;
     ARGB32pixel argb;
 } pixel32;
