@@ -2713,7 +2713,7 @@ DrawCanvas(
     }
 
     /*
-     * Before we can draw the canvas objects into the pixmap it's background
+     * Before we can draw the canvas objects into the pixmap, its background
      * should be filled with canvas background colour.
      */
 
