@@ -2723,7 +2723,7 @@ DrawCanvas(
     XFillRectangle(displayPtr,pixmap,xgc,0,0,pmWidth,pmHeight);
 
     /*
-     * Draw all the cavas items into the pixmap
+     * Draw all the canvas items into the pixmap
      */
 
     canvasPtr->drawableXOrigin = pixmapX1;
