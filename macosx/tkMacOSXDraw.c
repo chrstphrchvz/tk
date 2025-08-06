@@ -1066,6 +1066,21 @@ XFillArcs(
     return Success;
 }
 
+static inline CGRect
+ClipCopyRects(
+    CGRect srcBounds,
+    CGRect dstBounds,
+    int src_x,
+    int src_y,
+    unsigned int width,
+    unsigned int height)
+{
+    CGRect srcRect = CGRectMake(src_x, src_y, width, height);
+    CGRect bounds1 = CGRectIntersection(srcRect, srcBounds);
+    return CGRectIntersection(bounds1, dstBounds);
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -1115,17 +1130,28 @@ TkScrollWindow(
     HIMutableShapeRef dmgRgn = HIShapeCreateMutable();
     NSRect srcRect, dstRect;
     int result = 0;
+    NSView *view = TkMacOSXGetNSViewForDrawable(drawable);
+    CGRect viewBounds = [view bounds];    
+    
+    /*
+     * To compute the damage region correctly we need to clip the source and
+     * destination rectangles to the NSView bounds
+     */
 
-    // Should behave more like TkScrollWindow on other platforms
+    CGRect bounds = ClipCopyRects(viewBounds, viewBounds, x, y, width, height);
+    unsigned int w = bounds.size.width;
+    unsigned int h = bounds.size.height;
+    
     if (XCopyArea(Tk_Display(tkwin), drawable, drawable, gc, x, y,
-	    (unsigned)width, (unsigned)height, x+dx, y+dy) == Success) {
+	     w, h, x + dx, y + dy) == Success) {
 
 	/*
 	 * Compute the damage region, using Tk coordinates (origin at top left).
 	 */
 
 	srcRect = CGRectMake(x, y, width, height);
-	dstRect = CGRectOffset(srcRect, dx, dy);
+	dstRect = CGRectOffset(bounds, dx, dy);
+	//dstRect = CGRectOffset(srcRect, dx, dy);
 	srcRgn = HIShapeCreateWithRect(&srcRect);
 	dstRgn = HIShapeCreateWithRect(&dstRect);
 	ChkErr(HIShapeDifference, srcRgn, dstRgn, dmgRgn);
