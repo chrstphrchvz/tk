@@ -652,7 +652,7 @@ CreateCGImageFromDrawableRect(
     MacDrawable *mac_drawable = (MacDrawable *)drawable;
     CGContextRef cg_context = NULL;
     CGImageRef cg_image = NULL, result = NULL;
-    CGFloat scaleFactor = 1.0;
+    CGFloat srcScaleFactor = 1.0;
     if (mac_drawable->flags & TK_IS_PIXMAP) {
 	cg_context = TkMacOSXGetCGContextForDrawable(drawable);
 	CGContextRetain(cg_context);
@@ -662,7 +662,7 @@ CreateCGImageFromDrawableRect(
 	    TkMacOSXDbgMsg("Invalid source drawable");
 	    return NULL;
 	}
-	scaleFactor = view.layer.contentsScale;
+	srcScaleFactor = view.layer.contentsScale;
 	cg_context = ((TKContentView *)view).tkLayerBitmapContext;
 	CGContextRetain(cg_context);
     }
@@ -671,34 +671,30 @@ CreateCGImageFromDrawableRect(
 	CGContextRelease(cg_context);
     }
     if (cg_image) {
-	CGRect rect = CGRectMake(x + mac_drawable->xOff, y + mac_drawable->yOff,
-				 width, height);
-	rect = CGRectApplyAffineTransform(rect, CGAffineTransformMakeScale(scaleFactor, scaleFactor));
-	if (force_1x_scale && (scaleFactor != 1.0)) {
-	    // See https://web.archive.org/web/20200219030756/http://blog.foundry376.com/2008/07/scaling-a-cgimage/#comment-200
-	    // create context, keeping original image properties
-	    CGColorSpaceRef colorspace = CGImageGetColorSpace(cg_image);
-	    cg_context = CGBitmapContextCreate(NULL, width, height,
-		    CGImageGetBitsPerComponent(cg_image),
-		    //CGImageGetBytesPerRow(cg_image), // wastes space?
-		    CGImageGetBitsPerPixel(cg_image) * width / 8,
-		    colorspace,
-		    CGImageGetAlphaInfo(cg_image));
-	    CGColorSpaceRelease(colorspace);
-	    if (cg_context) {
-		// Extract the subimage in the specified rectangle.
-		CGImageRef subimage = CGImageCreateWithImageInRect(cg_image, rect);
-		// Draw the subimage in our context (resizing it to fit).
-		CGContextDrawImage(cg_context, CGRectMake(0, 0, width, height),
-			subimage);
-		// We will return the image we just drew.
-		result = CGBitmapContextCreateImage(cg_context);
-		CGContextRelease(cg_context);
-		CGImageRelease(subimage);
-	    }
-	} else {
-	    // No resizing is needed.  Just return the subimage
-	    result = CGImageCreateWithImageInRect(cg_image, rect);
+	CGFloat dstScaleFactor = force_1x_scale ? 1.0 : srcScaleFactor;
+	CGRect rect = CGRectMake(-srcScaleFactor*(x + mac_drawable->xOff),
+		srcScaleFactor*((int)height + y + mac_drawable->yOff) - (int)CGImageGetHeight(cg_image),
+		CGImageGetWidth(cg_image), CGImageGetHeight(cg_image));
+	rect = CGRectApplyAffineTransform(rect, CGAffineTransformMakeScale(
+		dstScaleFactor/srcScaleFactor, dstScaleFactor/srcScaleFactor));
+
+	// See https://web.archive.org/web/20200219030756/http://blog.foundry376.com/2008/07/scaling-a-cgimage/#comment-200
+	// create context, keeping original image properties; must have the requested width and height
+	CGColorSpaceRef colorspace = CGImageGetColorSpace(cg_image);
+	cg_context = CGBitmapContextCreate(NULL,
+		width * dstScaleFactor,
+		height * dstScaleFactor,
+		CGImageGetBitsPerComponent(cg_image),
+		CGImageGetBitsPerPixel(cg_image) * width * dstScaleFactor / 8,
+		colorspace,
+		CGImageGetAlphaInfo(cg_image));
+	CGColorSpaceRelease(colorspace);
+	if (cg_context) {
+	    // Draw the source at an offset in our context (resizing it to fit).
+	    CGContextDrawImage(cg_context, rect, cg_image);
+	    // We will return the image we just drew.
+	    result = CGBitmapContextCreateImage(cg_context);
+	    CGContextRelease(cg_context);
 	}
 	CGImageRelease(cg_image);
     }
