@@ -749,7 +749,7 @@ XGetImage(
     int y,
     unsigned int width,
     unsigned int height,
-    TCL_UNUSED(unsigned long),  /* plane_mask */
+    unsigned long plane_mask,
     int format)
 {
     NSBitmapImageRep* bitmapRep = nil;
@@ -813,15 +813,56 @@ XGetImage(
 	imagePtr = XCreateImage(display, NULL, depth, format, offset,
 		(char*) bitmap, width, height,
 		bitmap_pad, bytes_per_row);
+    } else if (format == XYPixmap && plane_mask == 1) {
+	depth = 1;
+	CGImageRef cgImage = CreateCGImageFromPixmap(drawable);
+	{
+	    CGImageRef cropped = CGImageCreateWithImageInRect(cgImage, CGRectMake(x, y, width, height));
+	    CGImageRelease(cgImage);
+	    cgImage = cropped;
+	}
+	if (!cgImage) {
+	    TkMacOSXDbgMsg("XGetImage: Failed to construct CGImage");
+	    return NULL;
+	}
+	bitmapRep = [NSBitmapImageRep alloc];
+	[bitmapRep initWithCGImage:cgImage];
+	CFRelease(cgImage);
+	//TkMacOSXDbgMsg("XGetImage bitmapRep %@", bitmapRep);
+#if 0
+	bitmap_fmt = [bitmapRep bitmapFormat];
+	size = [bitmapRep bytesPerPlane];
+	bytes_per_row = [bitmapRep bytesPerRow];
+	samples_per_pixel = [bitmapRep samplesPerPixel];
+	fprintf(stderr, "XGetImage:\n"
+		"  bitmsp_fmt = %ld\n"
+		"  samples_per_pixel = %ld\n"
+		"  width = %u\n"
+		"  height = %u\n"
+		"  bytes_per_row = %ld\n"
+		"  size = %ld\n",
+		bitmap_fmt, samples_per_pixel, width, height, bytes_per_row, size);
+#endif
+	bytes_per_row = (width + 7) / 8;
+	bitmap = (char *)ckalloc(bytes_per_row * height);
+	imagePtr = XCreateImage(display, NULL, depth, format, offset,
+		bitmap, width, height, bitmap_pad, bytes_per_row);
+	for (row = 0; row < height; row++) {
+	    unsigned int col;
+	    for (col = 0; col < width; col++) {
+		// Must have enough elements even though only p[0] is read
+		NSUInteger p[3];
+
+		[bitmapRep getPixel:p atX:col y:row];
+		//fprintf(stderr, "%3lu ", p[0]);
+		XPutPixel(imagePtr, col, row, p[0] != 0);
+	    }
+	    //fprintf(stderr, " r %u\n", row);
+	}
+	[bitmapRep release];
     } else {
 
-	/*
-	 * There are some calls to XGetImage in the generic Tk code which pass
-	 * an XYPixmap rather than a ZPixmap.  XYPixmaps should be handled
-	 * here.
-	 */
-
-	TkMacOSXDbgMsg("XGetImage does not handle XYPixmaps at the moment.");
+	TkMacOSXDbgMsg("XGetImage: not implemented for this format");
     }
     return imagePtr;
 }
