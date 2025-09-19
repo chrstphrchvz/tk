@@ -1464,6 +1464,14 @@ Tk_GetPixmap(
     int depth)		/* Bits per pixel for pixmap. */
 {
     MacDrawable *macPix;
+    const size_t bitsPerComponent = 8;
+    CGColorSpaceRef colorspace = NULL;
+    CGBitmapInfo bitmapInfo =
+#ifdef __LITTLE_ENDIAN__
+		kCGBitmapByteOrder32Host;
+#else
+		kCGBitmapByteOrderDefault;
+#endif
 
     if (display != NULL) {
 	LastKnownRequestProcessed(display)++;
@@ -1477,10 +1485,22 @@ Tk_GetPixmap(
     macPix->drawRgn = NULL;
     macPix->referenceCount = 0;
     macPix->toplevel = NULL;
-    macPix->flags = TK_IS_PIXMAP | (depth == 1 ? TK_IS_BW_PIXMAP : 0);
+    macPix->flags = TK_IS_PIXMAP;
+    if (depth == 1) {
+	macPix->flags |= TK_IS_BW_PIXMAP;
+	bitmapInfo = (CGBitmapInfo)kCGImageAlphaOnly;
+    } else {
+	colorspace = CGColorSpaceCreateDeviceRGB();
+	bitmapInfo |= kCGImageAlphaPremultipliedFirst;
+    }
     macPix->view = nil;
-    macPix->context = NULL;
-    macPix->size = CGSizeMake(width, height);
+
+    macPix->context = CGBitmapContextCreate(NULL, width, height, bitsPerComponent, 0,
+	colorspace, bitmapInfo);
+    CGColorSpaceRelease(colorspace);
+
+    // Is this still needed?
+    CGContextClearRect(macPix->context, CGRectMake(0, 0, width, height));
 
     return (Pixmap) macPix;
 }

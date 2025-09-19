@@ -229,7 +229,7 @@ CreateNSImageFromPixmap(
  *
  * TkMacOSXGetCGContextForDrawable --
  *
- *	Get CGContext for given Drawable, creating one if necessary.
+ *	Get CGContext for given Drawable.
  *
  * Results:
  *	CGContext.
@@ -245,36 +245,6 @@ TkMacOSXGetCGContextForDrawable(
     Drawable drawable)
 {
     MacDrawable *macDraw = (MacDrawable *)drawable;
-
-    if (macDraw && (macDraw->flags & TK_IS_PIXMAP) && !macDraw->context) {
-	const size_t bitsPerComponent = 8;
-	CGColorSpaceRef colorspace = NULL;
-	CGBitmapInfo bitmapInfo =
-#ifdef __LITTLE_ENDIAN__
-		kCGBitmapByteOrder32Host;
-#else
-		kCGBitmapByteOrderDefault;
-#endif
-	CGRect bounds = CGRectMake(0, 0,
-		macDraw->size.width, macDraw->size.height);
-
-	if (macDraw->flags & TK_IS_BW_PIXMAP) {
-	    bitmapInfo = (CGBitmapInfo)kCGImageAlphaOnly;
-	} else {
-	    colorspace = CGColorSpaceCreateDeviceRGB();
-	    bitmapInfo |= kCGImageAlphaPremultipliedFirst;
-	}
-	macDraw->context = CGBitmapContextCreate(NULL, (unsigned)macDraw->size.width,
-		(unsigned)macDraw->size.height, bitsPerComponent, 0,
-		colorspace, bitmapInfo);
-	if (macDraw->context) {
-	    CGContextClearRect(macDraw->context, bounds);
-	}
-	if (colorspace) {
-	    CFRelease(colorspace);
-	}
-    }
-
     return (macDraw ? macDraw->context : NULL);
 }
 

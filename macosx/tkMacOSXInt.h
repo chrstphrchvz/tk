@@ -63,7 +63,7 @@ struct TkWindowPrivate {
     CGContextRef context;
     int xOff;			/* X offset from toplevel window */
     int yOff;			/* Y offset from toplevel window */
-    CGSize size;
+    CGSize unused;
     HIShapeRef visRgn;		/* Visible region of window */
     HIShapeRef aboveVisRgn;	/* Visible region of window & its children */
     HIShapeRef drawRgn;		/* Clipped drawing region */

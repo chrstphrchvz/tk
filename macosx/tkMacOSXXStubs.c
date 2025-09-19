@@ -467,7 +467,8 @@ XGetGeometry(
     unsigned int *border_width_return,
     unsigned int *depth_return)
 {
-    TkWindow *winPtr = ((MacDrawable *)d)->winPtr;
+    MacDrawable *macDraw = (MacDrawable *)d;
+    TkWindow *winPtr = macDraw->winPtr;
 
     LastKnownRequestProcessed(display)++;
     *root_return = ROOT_ID;
@@ -479,11 +480,10 @@ XGetGeometry(
 	*border_width_return = winPtr->changes.border_width;
 	*depth_return = Tk_Depth(winPtr);
     } else {
-	CGSize size = ((MacDrawable *)d)->size;
 	*x_return = 0;
 	*y_return =  0;
-	*width_return = size.width;
-	*height_return = size.height;
+	*width_return = CGBitmapContextGetWidth(macDraw->context);
+	*height_return = CGBitmapContextGetHeight(macDraw->context);
 	*border_width_return = 0;
 	*depth_return = 32;
     }
