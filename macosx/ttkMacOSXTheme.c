@@ -1312,11 +1312,11 @@ static void DrawButton(
 	    DrawDownArrow(context, arrowBounds, 5, 6, state);
 	}
 	break;
-    case kThemeIncDecButton:
-	DrawGrayButton(context, bounds, &incdecDesign, state, tkwin);
-	if (state & TTK_STATE_PRESSED) {
+    case TkSpinboxUpButton:
+    case TkSpinboxDownButton:
+	{
 	    CGRect clip;
-	    if (drawState == kThemeStatePressedDown) {
+	    if (kind == TkSpinboxDownButton) {
 		clip = bounds;
 		clip.size.height /= 2;
 		clip.origin.y += clip.size.height;
@@ -1328,12 +1328,14 @@ static void DrawButton(
 	    }
 	    CGContextSaveGState(context);
 	    CGContextClipToRect(context, clip);
-	    DrawAccentedButton(context, bounds, &incdecDesign, 0, isDark);
-	    CGContextRestoreGState(context);
-	}
-	{
+	    if (state & TTK_STATE_PRESSED) {
+		DrawAccentedButton(context, bounds, &incdecDesign, 0, isDark);
+	    } else {
+		DrawGrayButton(context, bounds, &incdecDesign, state, tkwin);
+	    }
 	    CGFloat inset = (bounds.size.width - 5) / 2;
 	    DrawUpDownArrows(context, bounds, inset, 5, 3, state, drawState);
+	    CGContextRestoreGState(context);
 	}
 	break;
     default:
@@ -2280,6 +2282,8 @@ static Ttk_ElementSpec ComboboxElementSpec = {
  *      drawn twice, first in unpressed state by the up arrow and then in
  *      "pressed down" state by the down button.  The drawing must be done in
  *      that order.  So the up button must be listed first in the layout.
+ *      On newer macOS which draws without HIToolbox, clipping is used instead
+ *      to avoid drawing the other arrow button.
  */
 
 static Ttk_Padding SpinbuttonMargins = {2, 0, 0, 0};
@@ -2335,7 +2339,7 @@ static void SpinButtonUpElementDraw(
     const HIThemeButtonDrawInfo info = {
 	.version = 0,
 	.state = infoState,
-	.kind = kThemeIncDecButton,
+	.kind = ([NSApp macOSVersion] > 100800) ? TkSpinboxUpButton : kThemeIncDecButton,
 	.value = Ttk_StateTableLookup(ButtonValueTable, state),
 	.adornment = kThemeAdornmentNone,
     };
@@ -2373,13 +2377,15 @@ static void SpinButtonDownElementDraw(
     bounds.size.height += bounds.size.height;
     if (state & TTK_STATE_PRESSED) {
 	infoState = kThemeStatePressedDown;
+    } else if ([NSApp macOSVersion] > 100800) {
+	infoState = Ttk_StateTableLookup(ThemeStateTable, state);
     } else {
 	return;
     }
     const HIThemeButtonDrawInfo info = {
 	.version = 0,
 	.state = infoState,
-	.kind = kThemeIncDecButton,
+	.kind = ([NSApp macOSVersion] > 100800) ? TkSpinboxDownButton : kThemeIncDecButton,
 	.value = Ttk_StateTableLookup(ButtonValueTable, state),
 	.adornment = kThemeAdornmentNone,
     };

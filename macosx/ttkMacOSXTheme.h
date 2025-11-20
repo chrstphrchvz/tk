@@ -494,6 +494,8 @@ static const Ttk_StateTable ButtonAdornmentTable[] = {
 #define TkRecessedButton    0x8003
 #define TkInlineButton      0x8004
 #define TkSidebarButton     0x8005
+#define TkSpinboxUpButton   0x8006
+#define TkSpinboxDownButton 0x8007
 /*
  * The struct passed as clientData when drawing Ttk buttons.
  */
