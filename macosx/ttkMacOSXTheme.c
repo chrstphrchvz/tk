@@ -2291,7 +2291,6 @@ static void SpinButtonReBounds(
     if (TkMacOSXInDarkMode(tkwin)) {
 	bounds->origin.x -= 2;
 	bounds->origin.y += 1;
-	bounds->size.height -= 0.5;
     } else {
 	bounds->origin.x -= 3;
 	bounds->origin.y += 1;
